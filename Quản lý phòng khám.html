@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Quản lý phòng khám</title>
+<script src="https://cdn.tailwindcss.com/3.4.17"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+<style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{background:#f1f5f9;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}@media print{body *{visibility:hidden}.inv,.inv *{visibility:visible}.inv{position:absolute;left:0;top:0;width:100%}}</style>
+</head>
+<body>
+<div id="root">Đang tải…</div>
+<script type="text/plain" id="src">
+const {useState, useEffect, useRef} = React;
+type R = Record<string, any>;
+const money = (n: number) => n.toLocaleString('vi-VN') + ' đ';
+const MONTH = new Date().toISOString().slice(0, 7);
+const TODAY = new Date().toISOString().slice(0, 10);
+const nowStr = () => new Date().toISOString().slice(0, 16).replace('T', ' ');
+const inp = 'border border-slate-300 rounded-md px-2.5 py-1.5 text-sm w-full bg-white focus:outline-none focus:ring-2 focus:ring-blue-500';
+const BC: R = { p: 'bg-blue-600 text-white hover:bg-blue-700', g: 'bg-white border border-slate-300 text-slate-700 hover:bg-slate-50', d: 'bg-red-600 text-white hover:bg-red-700' };
+const B = ({ c = 'p', className = '', ...p }: R) => <button {...p} className={'px-3 py-1.5 rounded-md text-sm font-medium disabled:opacity-40 ' + BC[c] + ' ' + className} />;
+const nm = (a: R[], id: number) => a.find(x => x.id === id)?.name ?? '?';
+const ROLES = ['Tiếp đón', 'Cấp thuốc', 'Tiêm thuốc', 'Chăm sóc', 'Theo dõi'];
+const BASE: R = { doc: 15000000, nur: 8000000 }; // MẪU: lược đồ chưa có cột lương cơ bản
+
+const seed: R = {
+  pat: [
+    { id: 1, ma: 'BN001', name: 'Nguyễn Văn An', cmt: '001090012345', dob: '1990-05-12', gender: 'Nam', phone: '0912345678', address: 'Cầu Giấy, Hà Nội' },
+    { id: 2, ma: 'BN002', name: 'Trần Thị Bình', cmt: '001185067890', dob: '1985-11-03', gender: 'Nữ', phone: '0987654321', address: 'Đống Đa, Hà Nội' },
+    { id: 3, ma: 'BN003', name: 'Lê Hoàng Cường', cmt: '001201034567', dob: '2001-02-20', gender: 'Nam', phone: '0903111222', address: 'Thanh Xuân, Hà Nội' }],
+  doc: [
+    { id: 1, name: 'BS. Phạm Minh Đức', cmt: '001078000111', phone: '0911000111', bac: 'Bác sĩ CKI', tn: 8, tt: 'DANG_LAM' },
+    { id: 2, name: 'BS. Vũ Thu Hà', cmt: '001082000222', phone: '0911000222', bac: 'Bác sĩ CKII', tn: 12, tt: 'DANG_LAM' }],
+  nur: [
+    { id: 1, name: 'YT. Hoàng Thị Lan', cmt: '001095000333', phone: '0922000333', trinh: 'Cao đẳng', tn: 4, tt: 'DANG_LAM' },
+    { id: 2, name: 'YT. Đặng Văn Nam', cmt: '001097000444', phone: '0922000444', trinh: 'Trung cấp', tn: 2, tt: 'DANG_LAM' }],
+  dis: [
+    { id: 1, name: 'Viêm họng', mota: 'Viêm nhiễm đường hô hấp trên' },
+    { id: 2, name: 'Tiểu đường tuýp 2', mota: 'Rối loạn chuyển hóa đường huyết' },
+    { id: 3, name: 'Viêm dạ dày', mota: 'Viêm niêm mạc dạ dày' },
+    { id: 4, name: 'Cao huyết áp', mota: 'Huyết áp cao kéo dài' }],
+  drg: [
+    { id: 1, name: 'Paracetamol 500mg', unit: 'viên', price: 1500, stock: 500 },
+    { id: 2, name: 'Amoxicillin 500mg', unit: 'viên', price: 3000, stock: 200 },
+    { id: 3, name: 'Omeprazole 20mg', unit: 'viên', price: 5000, stock: 8 },
+    { id: 4, name: 'Metformin 500mg', unit: 'viên', price: 2000, stock: 300 }],
+  dot: [
+    { id: 1, pid: 1, dis: 1, start: '2026-09-02', end: '2026-09-09', st: 'KHOI', endVisit: 2 },
+    { id: 2, pid: 1, dis: 1, start: '2026-10-10', end: null, st: 'DANG_DIEU_TRI', endVisit: null },
+    { id: 3, pid: 2, dis: 2, start: '2026-09-15', end: null, st: 'DANG_DIEU_TRI', endVisit: null },
+    { id: 4, pid: 3, dis: 3, start: '2026-10-05', end: '2026-10-19', st: 'KHOI', endVisit: 6 }],
+  vis: [
+    { id: 1, pid: 1, in: '2026-09-02 08:30', out: '2026-09-02 09:10' }, { id: 2, pid: 1, in: '2026-09-09 08:40', out: '2026-09-09 09:05' },
+    { id: 3, pid: 2, in: '2026-09-15 10:00', out: '2026-09-15 10:45' }, { id: 4, pid: 1, in: '2026-10-10 14:00', out: '2026-10-10 14:35' },
+    { id: 5, pid: 3, in: '2026-10-05 09:00', out: '2026-10-05 09:40' }, { id: 6, pid: 3, in: '2026-10-19 09:15', out: '2026-10-19 09:50' },
+    { id: 7, pid: 2, in: '2026-10-22 15:00', out: '2026-10-22 15:40' },
+    { id: 8, pid: 3, in: TODAY + ' 11:30', out: '' },
+    { id: 9, pid: 2, in: TODAY + ' 09:00', out: TODAY + ' 09:40' }, { id: 10, pid: 1, in: TODAY + ' 10:15', out: '' }],
+  dx: [
+    { vid: 1, dot: 1, doc: 1, fee: 150000, note: 'Viêm họng cấp, kê kháng sinh' }, { vid: 2, dot: 1, doc: 1, fee: 100000, note: 'Hết triệu chứng - khỏi' },
+    { vid: 3, dot: 3, doc: 2, fee: 200000, note: 'Đường huyết cao, bắt đầu điều trị' }, { vid: 4, dot: 2, doc: 1, fee: 150000, note: 'Tái phát viêm họng' },
+    { vid: 5, dot: 4, doc: 2, fee: 150000, note: 'Viêm dạ dày do H.P' }, { vid: 6, dot: 4, doc: 2, fee: 100000, note: 'Ổn định - khỏi' },
+    { vid: 7, dot: 3, doc: 2, fee: 100000, note: 'Tái khám, tiếp tục dùng thuốc' },
+    { vid: 9, dot: 3, doc: 2, fee: 100000, note: 'Tái khám định kỳ' }, { vid: 10, dot: 2, doc: 1, fee: 150000, note: 'Đang khám' }],
+  sup: [
+    { vid: 1, nurse: 1, role: 'Tiếp đón' }, { vid: 2, nurse: 2, role: 'Tiêm thuốc' }, { vid: 3, nurse: 1, role: 'Chăm sóc' }, { vid: 4, nurse: 1, role: 'Tiếp đón' },
+    { vid: 5, nurse: 2, role: 'Cấp thuốc' }, { vid: 6, nurse: 2, role: 'Theo dõi' }, { vid: 7, nurse: 1, role: 'Tiếp đón' }, { vid: 9, nurse: 2, role: 'Tiếp đón' }, { vid: 10, nurse: 1, role: 'Tiếp đón' }],
+  rx: [
+    { id: 1, vid: 1, date: '2026-09-02', items: [{ drug: 1, qty: 10, price: 1500, guide: 'Sáng - tối sau ăn' }, { drug: 2, qty: 10, price: 3000, guide: '2 viên/ngày' }] },
+    { id: 2, vid: 3, date: '2026-09-15', items: [{ drug: 4, qty: 30, price: 2000, guide: '1 viên x 2 lần/ngày' }] },
+    { id: 3, vid: 5, date: '2026-10-05', items: [{ drug: 3, qty: 14, price: 5000, guide: '1 viên trước ăn sáng' }] }],
+};
+
+const Modal = ({ title, onClose, children, wide }: R) => (
+  <div className="fixed inset-0 bg-slate-900/50 flex items-start justify-center overflow-y-auto p-4 z-50" onClick={onClose}>
+    <div className={'bg-white rounded-xl shadow-xl w-full my-8 ' + (wide ? 'max-w-4xl' : 'max-w-lg')} onClick={e => e.stopPropagation()}>
+      <div className="flex justify-between items-center px-5 py-3 border-b"><h3 className="font-semibold text-slate-800">{title}</h3><button onClick={onClose} className="text-slate-400 hover:text-slate-700 text-xl leading-none">×</button></div>
+      <div className="p-5">{children}</div>
+    </div>
+  </div>);
+
+const Tbl = ({ heads, rows, per = 6 }: R) => {
+  const [pg, setPg] = useState(0);
+  const pages = Math.max(1, Math.ceil(rows.length / per)), p = Math.min(pg, pages - 1);
+  return (
+    <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+      <div className="overflow-x-auto"><table className="w-full text-sm">
+        <thead className="bg-slate-50 text-slate-600 text-left"><tr>{heads.map((h: string) => <th key={h} className="px-3 py-2.5 font-medium whitespace-nowrap">{h}</th>)}</tr></thead>
+        <tbody>{rows.slice(p * per, p * per + per).map((r: any[], i: number) => <tr key={i} className="border-t border-slate-100 hover:bg-slate-50">{r.map((c, j) => <td key={j} className="px-3 py-2.5 align-top">{c}</td>)}</tr>)}
+          {!rows.length && <tr><td colSpan={heads.length} className="px-3 py-8 text-center text-slate-400">Không có dữ liệu</td></tr>}</tbody>
+      </table></div>
+      <div className="flex justify-between items-center px-3 py-2 border-t text-xs text-slate-500">
+        <span>{rows.length} bản ghi</span>
+        <div className="flex gap-2 items-center"><B c="g" disabled={p === 0} onClick={() => setPg(p - 1)}>‹</B>Trang {p + 1}/{pages}<B c="g" disabled={p >= pages - 1} onClick={() => setPg(p + 1)}>›</B></div>
+      </div>
+    </div>);
+};
+
+const Fld = ({ l, children }: R) => <label className="block text-sm"><span className="text-slate-600 block mb-1">{l}</span>{children}</label>;
+const Badge = ({ ok, children }: R) => <span className={'px-2 py-0.5 rounded-full text-xs font-medium ' + (ok ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700')}>{children}</span>;
+const Head = ({ t, children }: R) => <div className="flex flex-wrap justify-between items-center gap-3 mb-4"><h2 className="text-xl font-semibold text-slate-800">{t}</h2><div className="flex gap-2 items-center">{children}</div></div>;
+
+// Trang CRUD dùng chung: Bệnh nhân, Bác sĩ, Y tá, Bệnh, Thuốc
+function Crud({ title, rows, setRows, fields, inUse, lock, view }: R) {
+  const [q, setQ] = useState(''), [ed, setEd] = useState<R | null>(null), [del, setDel] = useState<R | null>(null), [err, setErr] = useState('');
+  const f = rows.filter((r: R) => Object.values(r).join(' ').toLowerCase().includes(q.toLowerCase()));
+  const save = () => {
+    const miss = fields.find((x: R) => x.req && !String(ed![x.k] ?? '').trim());
+    if (miss) return setErr('Vui lòng nhập: ' + miss.l);
+    if (ed!.id) setRows(rows.map((r: R) => r.id === ed!.id ? ed : r));
+    else setRows([...rows, { ...ed, id: Math.max(0, ...rows.map((r: R) => r.id)) + 1 }]);
+    setEd(null); setErr('');
+  };
+  return (<div>
+    <Head t={title}><input className={inp + ' !w-56'} placeholder="Tìm kiếm…" value={q} onChange={e => setQ(e.target.value)} />
+      <B onClick={() => { setErr(''); setEd(Object.fromEntries(fields.map((x: R) => [x.k, x.opts ? x.opts[0] : '']))); }}>+ Thêm mới</B></Head>
+    <Tbl heads={[...fields.filter((x: R) => !x.hide).map((x: R) => x.l), 'Thao tác']}
+      rows={f.map((r: R) => [...fields.filter((x: R) => !x.hide).map((x: R) => x.type === 'number' && r[x.k] !== '' ? Number(r[x.k]).toLocaleString('vi-VN') : r[x.k]),
+        <div className="flex gap-2">{view && <button className="text-slate-600 hover:underline" onClick={() => view(r)}>Xem</button>}<button className="text-blue-700 hover:underline" onClick={() => { setErr(''); setEd({ ...r }); }}>Sửa</button>{lock && <button className="text-amber-700 hover:underline" onClick={() => setRows(rows.map((x: R) => x.id === r.id ? { ...x, [lock[0]]: x[lock[0]] === lock[2] ? lock[1] : lock[2] } : x))}>{r[lock[0]] === lock[2] ? 'Mở khóa' : 'Khóa'}</button>}<button className="text-red-600 hover:underline" onClick={() => setDel(r)}>Xóa</button></div>])} />
+    {ed && <Modal title={(ed.id ? 'Sửa ' : 'Thêm ') + title.toLowerCase()} onClose={() => setEd(null)}>
+      <div className="grid grid-cols-2 gap-3">{fields.map((x: R) => <Fld key={x.k} l={x.l + (x.req ? ' *' : '')}>
+        {x.opts ? <select className={inp} value={ed[x.k]} onChange={e => setEd({ ...ed, [x.k]: e.target.value })}>{x.opts.map((o: string) => <option key={o}>{o}</option>)}</select>
+          : <input className={inp} type={x.type || 'text'} value={ed[x.k] ?? ''} onChange={e => setEd({ ...ed, [x.k]: e.target.value })} />}</Fld>)}</div>
+      {err && <p className="text-red-600 text-sm mt-3">{err}</p>}
+      <div className="flex justify-end gap-2 mt-5"><B c="g" onClick={() => setEd(null)}>Hủy</B><B onClick={save}>Lưu</B></div></Modal>}
+    {del && <Modal title="Xác nhận xóa" onClose={() => setDel(null)}>
+      {inUse && inUse(del) ? <p className="text-sm text-red-600">Không thể xóa "{del.name}" vì đã có dữ liệu liên quan (khóa ngoại). Hãy chuyển trạng thái sang ngưng hoạt động.</p>
+        : <p className="text-sm">Bạn chắc chắn muốn xóa <b>{del.name}</b>?</p>}
+      <div className="flex justify-end gap-2 mt-5"><B c="g" onClick={() => setDel(null)}>Hủy</B>
+        <B c="d" disabled={!!(inUse && inUse(del))} onClick={() => { setRows(rows.filter((r: R) => r.id !== del.id)); setDel(null); }}>Xóa</B></div></Modal>}
+  </div>);
+}
+
+const visTotal = (db: R, vid: number) => {
+  const fee = db.dx.filter((x: R) => x.vid === vid).reduce((s: number, x: R) => s + x.fee, 0);
+  const med = db.rx.filter((r: R) => r.vid === vid).flatMap((r: R) => r.items).reduce((s: number, i: R) => s + i.qty * i.price, 0);
+  return { fee, med, all: fee + med };
+};
+
+function Dashboard({ db, go }: R) {
+  const rev = db.vis.filter((v: R) => v.in.startsWith(MONTH)).reduce((s: number, v: R) => s + visTotal(db, v.id).all, 0);
+  const td = db.vis.filter((v: R) => v.in.startsWith(TODAY)).sort((a: R, b: R) => a.in.localeCompare(b.in));
+  const st = (v: R) => v.out ? 'done' : db.dx.some((x: R) => x.vid === v.id) ? 'doing' : 'wait';
+  const SB: R = { done: ['Đã khám', 'bg-emerald-100 text-emerald-700'], doing: ['Đang khám', 'bg-blue-100 text-blue-700'], wait: ['Đang chờ', 'bg-orange-100 text-orange-700'] };
+  const ini = (n: string) => n.split(' ').slice(-2).map((w: string) => w[0]).join('');
+  const fmt = (t: string) => t.split(' ')[0].split('-').reverse().join('/') + ' ' + t.split(' ')[1];
+  const doc = (v: R) => { const x = db.dx.find((y: R) => y.vid === v.id); return x ? nm(db.doc, x.doc) : 'Chưa phân công'; };
+  const recent = db.pat.map((p: R) => ({ p, last: db.vis.filter((v: R) => v.pid === p.id).map((v: R) => v.in).sort().reverse()[0], open: db.dot.some((d: R) => d.pid === p.id && d.st === 'DANG_DIEU_TRI') }))
+    .filter((r: R) => r.last).sort((a: R, b: R) => b.last.localeCompare(a.last)).slice(0, 5);
+  const quick = [['🔍', 'Tra cứu hồ sơ bệnh nhân', 'Tìm nhanh thông tin bệnh nhân', 'bg-blue-100', () => go('rep', { tab: 3 })],
+    ['➕', 'Tạo lần khám mới', 'Đăng ký lượt khám cho bệnh nhân', 'bg-emerald-100', () => go('vis', { nv: true })],
+    ['💊', 'Đơn thuốc', 'Quản lý và kê đơn thuốc', 'bg-emerald-100', () => go('rx')],
+    ['📊', 'Báo cáo doanh thu', 'Xem báo cáo tài chính', 'bg-blue-100', () => go('rep', { tab: 2 })]];
+  const stats = [['📅', 'Lượt khám hôm nay', td.length, 'bg-blue-50 border-blue-200', 'text-blue-700', 'vis'],
+    ['💚', 'Bệnh nhân đang điều trị', new Set(db.dot.filter((d: R) => d.st === 'DANG_DIEU_TRI').map((d: R) => d.pid)).size, 'bg-emerald-50 border-emerald-200', 'text-emerald-700', 'dot'],
+    ['💲', 'Doanh thu trong kỳ', (rev / 1e6).toLocaleString('vi-VN', { maximumFractionDigits: 2 }) + ' triệu', 'bg-orange-50 border-orange-200', 'text-orange-600', 'rep']];
+  const Link = ({ to, c, o }: R) => <button onClick={() => go(to, o)} className={'text-sm font-medium hover:underline ' + c}>Xem tất cả →</button>;
+  return (<div>
+    <h2 className="text-3xl font-bold text-slate-800">Tổng quan</h2><p className="text-slate-500 mb-5">Tổng quan hoạt động phòng khám hôm nay</p>
+    <div className="grid grid-cols-2 xl:grid-cols-4 gap-4 mb-5">{quick.map((q: any) => <button key={q[1]} onClick={q[4]} className="bg-white rounded-xl border border-slate-200 p-4 flex items-center gap-3 text-left hover:shadow-md transition">
+      <span className={'w-12 h-12 rounded-xl flex items-center justify-center text-xl shrink-0 ' + q[3]}>{q[0]}</span><span><span className="block font-semibold text-slate-800 text-sm">{q[1]}</span><span className="block text-xs text-slate-500 mt-0.5">{q[2]}</span></span></button>)}</div>
+    <div className="grid md:grid-cols-3 gap-4 mb-5">{stats.map((c: any) => <div key={c[1]} className={'rounded-xl border p-5 flex items-center gap-4 ' + c[3]}>
+      <span className="w-16 h-16 rounded-xl bg-white/70 flex items-center justify-center text-3xl shrink-0">{c[0]}</span>
+      <div><div className="text-slate-700 font-medium">{c[1]}</div><div className="text-4xl font-bold text-slate-900 my-0.5">{c[2]}</div>
+        <button onClick={() => go(c[5], c[5] === 'rep' ? { tab: 2 } : {})} className={'text-sm font-medium hover:underline ' + c[4]}>Xem chi tiết →</button></div></div>)}</div>
+    <div className="grid lg:grid-cols-2 gap-5">
+      <div className="bg-white rounded-xl border border-slate-200 p-5"><div className="flex justify-between items-center mb-3"><h3 className="font-semibold text-slate-800">👥 Bệnh nhân gần đây</h3><Link to="pat" c="text-blue-600" /></div>
+        <table className="w-full text-sm"><thead className="bg-slate-50 text-slate-600 text-left"><tr><th className="px-3 py-2 font-medium">Mã BN</th><th className="px-3 py-2 font-medium">Họ tên</th><th className="px-3 py-2 font-medium">Lần khám gần nhất</th><th className="px-3 py-2 font-medium">Trạng thái</th></tr></thead>
+          <tbody>{recent.map((r: R) => <tr key={r.p.id} className="border-t border-slate-100"><td className="px-3 py-3">{r.p.ma}</td><td className="px-3 py-3">{r.p.name}</td><td className="px-3 py-3 whitespace-nowrap">{fmt(r.last)}</td>
+            <td className="px-3 py-3"><span className={'px-2.5 py-1 rounded-md text-xs font-medium ' + (r.open ? 'bg-blue-100 text-blue-700' : 'bg-emerald-100 text-emerald-700')}>{r.open ? 'Đang điều trị' : 'Đã khỏi'}</span></td></tr>)}</tbody></table></div>
+      <div className="bg-white rounded-xl border border-slate-200 p-5 flex flex-col"><div className="flex justify-between items-center mb-3"><h3 className="font-semibold text-slate-800">📅 Lượt khám hôm nay</h3><Link to="vis" c="text-blue-600" /></div>
+        <div className="border border-slate-100 rounded-lg divide-y divide-slate-100 flex-1">{td.map((v: R) => <div key={v.id} className="flex items-center gap-3 px-3 py-3">
+          <span className="w-10 h-10 rounded-full bg-blue-100 text-blue-700 text-sm font-semibold flex items-center justify-center shrink-0">{ini(nm(db.pat, v.pid))}</span>
+          <div className="flex-1 min-w-0"><div className="font-medium text-slate-800 text-sm">{nm(db.pat, v.pid)}</div><div className="text-xs text-slate-500">{doc(v)}</div></div>
+          <span className="text-sm text-slate-700">{v.in.slice(11)}</span><span className={'px-2.5 py-1 rounded-md text-xs font-medium w-24 text-center ' + SB[st(v)][1]}>{SB[st(v)][0]}</span></div>)}
+          {!td.length && <div className="p-6 text-center text-slate-400 text-sm">Hôm nay chưa có lượt khám</div>}</div>
+        <button onClick={() => go('vis')} className="text-sm text-slate-700 hover:underline mt-3 self-center">Xem lịch khám đầy đủ →</button></div></div>
+    {db.drg.some((d: R) => d.stock < 20) && <p className="mt-5 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-md p-3">Cảnh báo tồn kho: {db.drg.filter((d: R) => d.stock < 20).map((d: R) => d.name + ' (' + d.stock + ')').join(', ')}</p>}
+  </div>);
+}
+
+function Visits({ db, up, autoNew }: R) {
+  const [q, setQ] = useState(''), [sel, setSel] = useState<number | null>(null), [nw, setNw] = useState<R | null>(autoNew ? { pid: db.pat[0]?.id, in: nowStr().replace(' ', 'T') } : null), [inv, setInv] = useState<number | null>(null);
+  const rows = db.vis.filter((v: R) => nm(db.pat, v.pid).toLowerCase().includes(q.toLowerCase())).sort((a: R, b: R) => b.in.localeCompare(a.in));
+  return (<div>
+    <Head t="Lượt khám & Tiếp đón"><input className={inp + ' !w-56'} placeholder="Tìm theo tên bệnh nhân…" value={q} onChange={e => setQ(e.target.value)} />
+      <B onClick={() => setNw({ pid: db.pat[0]?.id, in: nowStr().replace(' ', 'T') })}>+ Tạo lượt khám</B></Head>
+    <Tbl heads={['Mã', 'Bệnh nhân', 'Vào', 'Ra', 'Bệnh chẩn đoán', 'Y tá', 'Tổng tiền', '']} rows={rows.map((v: R) => {
+      const dxs = db.dx.filter((x: R) => x.vid === v.id);
+      return ['LK' + v.id, nm(db.pat, v.pid), v.in, v.out || '—',
+        dxs.length ? dxs.map((x: R) => nm(db.dis, db.dot.find((t: R) => t.id === x.dot).dis)).join(', ') : <Badge>Chưa có chẩn đoán</Badge>,
+        db.sup.filter((s: R) => s.vid === v.id).length, money(visTotal(db, v.id).all), <div className="flex gap-3"><button className="text-blue-700 hover:underline" onClick={() => setSel(v.id)}>Chi tiết</button><button className="text-slate-600 hover:underline" onClick={() => setInv(v.id)}>Hóa đơn</button></div>];
+    })} />
+    {nw && <Modal title="Tạo lượt khám mới" onClose={() => setNw(null)}>
+      <div className="space-y-3"><Fld l="Bệnh nhân"><select className={inp} value={nw.pid} onChange={e => setNw({ ...nw, pid: +e.target.value })}>{db.pat.map((p: R) => <option key={p.id} value={p.id}>{p.ma} - {p.name}</option>)}</select></Fld>
+        <Fld l="Thời điểm vào"><input type="datetime-local" className={inp} value={nw.in} onChange={e => setNw({ ...nw, in: e.target.value })} /></Fld>
+        <p className="text-xs text-slate-500">Lưu ý nghiệp vụ: lượt khám chỉ hợp lệ khi có ít nhất 1 bệnh được ghi nhận. Hãy mở "Chi tiết" để thêm chẩn đoán.</p></div>
+      <div className="flex justify-end gap-2 mt-5"><B c="g" onClick={() => setNw(null)}>Hủy</B>
+        <B onClick={() => { const id = Math.max(0, ...db.vis.map((v: R) => v.id)) + 1; up({ vis: [...db.vis, { id, pid: nw.pid, in: nw.in.replace('T', ' '), out: '' }] }); setNw(null); setSel(id); }}>Tạo</B></div></Modal>}
+    {sel && <Detail db={db} up={up} vid={sel} onClose={() => setSel(null)} />}
+    {inv && <Invoice db={db} vid={inv} onClose={() => setInv(null)} />}
+  </div>);
+}
+
+function Detail({ db, up, vid, onClose }: R) {
+  const v = db.vis.find((x: R) => x.id === vid);
+  const [f, setF] = useState<R>({ dis: db.dis[0]?.id, doc: db.doc[0]?.id, fee: 150000, note: '', cured: false });
+  const [n, setN] = useState<R>({ nurse: db.nur[0]?.id, role: ROLES[0] });
+  const [r, setR] = useState<R>({ drug: db.drg[0]?.id, qty: 1, guide: '' });
+  const [err, setErr] = useState('');
+  const open = db.dot.find((d: R) => d.pid === v.pid && d.dis === +f.dis && d.st === 'DANG_DIEU_TRI');
+  const prevCured = db.dot.some((d: R) => d.pid === v.pid && d.dis === +f.dis && d.st === 'KHOI');
+  const tot = visTotal(db, vid);
+  const addDx = () => {
+    if (open && db.dx.some((x: R) => x.vid === vid && x.dot === open.id)) return setErr('Bệnh này đã được chẩn đoán trong lượt khám.');
+    let dots = [...db.dot], id = open?.id;
+    if (!open) { id = Math.max(0, ...dots.map((d: R) => d.id)) + 1; dots.push({ id, pid: v.pid, dis: +f.dis, start: v.in.slice(0, 10), end: null, st: 'DANG_DIEU_TRI', endVisit: null }); }
+    if (f.cured) dots = dots.map((d: R) => d.id === id ? { ...d, st: 'KHOI', end: v.in.slice(0, 10), endVisit: vid } : d);
+    up({ dot: dots, dx: [...db.dx, { vid, dot: id, doc: +f.doc, fee: +f.fee, note: f.note }] }); setErr(''); setF({ ...f, note: '', cured: false });
+  };
+  const addNurse = () => {
+    if (db.sup.some((s: R) => s.vid === vid && s.nurse === +n.nurse)) return setErr('Y tá này đã được ghi nhận trong lượt khám (mỗi cặp chỉ tính thưởng 1 lần).');
+    up({ sup: [...db.sup, { vid, nurse: +n.nurse, role: n.role }] }); setErr('');
+  };
+  const addRx = () => {
+    const d = db.drg.find((x: R) => x.id === +r.drug);
+    if (+r.qty < 1 || +r.qty > d.stock) return setErr('Số lượng không hợp lệ hoặc vượt tồn kho (' + d.stock + ').');
+    if (db.rx.some((x: R) => x.vid === vid && x.items.some((i: R) => i.drug === d.id))) return setErr('Thuốc này đã có trong đơn của lượt khám.');
+    const item = { drug: d.id, qty: +r.qty, price: d.price, guide: r.guide };
+    const ex = db.rx.find((x: R) => x.vid === vid);
+    up({ rx: ex ? db.rx.map((x: R) => x === ex ? { ...x, items: [...x.items, item] } : x) : [...db.rx, { id: Math.max(0, ...db.rx.map((x: R) => x.id)) + 1, vid, date: v.in.slice(0, 10), items: [item] }],
+      drg: db.drg.map((x: R) => x.id === d.id ? { ...x, stock: x.stock - item.qty } : x) }); setErr(''); setR({ ...r, qty: 1, guide: '' });
+  };
+  const items = db.rx.filter((x: R) => x.vid === vid).flatMap((x: R) => x.items);
+  return (<Modal wide title={'Lượt khám LK' + vid + ' - ' + nm(db.pat, v.pid)} onClose={onClose}>
+    <div className="flex flex-wrap justify-between gap-2 text-sm mb-4"><span>Vào: <b>{v.in}</b> · Ra: <b>{v.out || 'chưa cập nhật'}</b></span>
+      {!v.out && <B c="g" onClick={() => up({ vis: db.vis.map((x: R) => x.id === vid ? { ...x, out: nowStr() } : x) })}>Cập nhật giờ ra</B>}</div>
+    {err && <p className="text-red-600 text-sm mb-3 bg-red-50 p-2 rounded">{err}</p>}
+    <h4 className="font-medium mb-2">1. Chẩn đoán (bác sĩ)</h4>
+    <ul className="text-sm mb-2 space-y-1">{db.dx.filter((x: R) => x.vid === vid).map((x: R) => { const t = db.dot.find((d: R) => d.id === x.dot); return <li key={x.dot} className="bg-slate-50 rounded p-2">{nm(db.dis, t.dis)} · Đợt #{t.id} <Badge ok={t.st === 'KHOI'}>{t.st === 'KHOI' ? 'Khỏi' : 'Đang điều trị'}</Badge> · {nm(db.doc, x.doc)} · {money(x.fee)} · <i>{x.note}</i></li>; })}</ul>
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-2 items-end mb-1">
+      <Fld l="Bệnh"><select className={inp} value={f.dis} onChange={e => setF({ ...f, dis: e.target.value })}>{db.dis.map((d: R) => <option key={d.id} value={d.id}>{d.name}</option>)}</select></Fld>
+      <Fld l="Bác sĩ phụ trách"><select className={inp} value={f.doc} onChange={e => setF({ ...f, doc: e.target.value })}>{db.doc.map((d: R) => <option key={d.id} value={d.id}>{d.name}</option>)}</select></Fld>
+      <Fld l="Phí khám chữa (đ)"><input type="number" className={inp} value={f.fee} onChange={e => setF({ ...f, fee: e.target.value })} /></Fld>
+      <Fld l="Kết luận"><input className={inp} value={f.note} onChange={e => setF({ ...f, note: e.target.value })} /></Fld></div>
+    <div className="flex flex-wrap items-center gap-3 mb-5 text-sm"><label className="flex items-center gap-1.5"><input type="checkbox" checked={f.cured} onChange={e => setF({ ...f, cured: e.target.checked })} />Kết thúc đợt - Khỏi</label>
+      <span className="text-xs text-slate-500">{open ? 'Sẽ gắn vào đợt đang mở #' + open.id : prevCured ? 'Đợt cũ đã khỏi → tạo đợt MỚI (tái phát)' : 'Chưa có đợt → tạo đợt mới'}</span><B className="ml-auto" onClick={addDx}>+ Thêm chẩn đoán</B></div>
+    <h4 className="font-medium mb-2">2. Y tá hỗ trợ</h4>
+    <ul className="text-sm mb-2 space-y-1">{db.sup.filter((s: R) => s.vid === vid).map((s: R) => <li key={s.nurse} className="bg-slate-50 rounded p-2">{nm(db.nur, s.nurse)} - {s.role}</li>)}</ul>
+    <div className="flex gap-2 items-end mb-5"><Fld l="Y tá"><select className={inp} value={n.nurse} onChange={e => setN({ ...n, nurse: e.target.value })}>{db.nur.map((x: R) => <option key={x.id} value={x.id}>{x.name}</option>)}</select></Fld>
+      <Fld l="Vai trò"><select className={inp} value={n.role} onChange={e => setN({ ...n, role: e.target.value })}>{ROLES.map(x => <option key={x}>{x}</option>)}</select></Fld><B onClick={addNurse}>+ Phân công</B></div>
+    <h4 className="font-medium mb-2">3. Đơn thuốc</h4>
+    <ul className="text-sm mb-2 space-y-1">{items.map((i: R, k: number) => <li key={k} className="bg-slate-50 rounded p-2">{nm(db.drg, i.drug)} × {i.qty} · {money(i.price)} · {i.guide || '—'} = <b>{money(i.qty * i.price)}</b></li>)}</ul>
+    <div className="grid grid-cols-4 gap-2 items-end"><Fld l="Thuốc"><select className={inp} value={r.drug} onChange={e => setR({ ...r, drug: e.target.value })}>{db.drg.map((d: R) => <option key={d.id} value={d.id}>{d.name} (kho {d.stock})</option>)}</select></Fld>
+      <Fld l="Số lượng"><input type="number" className={inp} value={r.qty} onChange={e => setR({ ...r, qty: e.target.value })} /></Fld>
+      <Fld l="Hướng dẫn"><input className={inp} value={r.guide} onChange={e => setR({ ...r, guide: e.target.value })} /></Fld><B onClick={addRx}>+ Kê thuốc</B></div>
+    <div className="mt-5 pt-3 border-t text-sm text-right">Phí khám: {money(tot.fee)} · Tiền thuốc: {money(tot.med)} · <b className="text-blue-700">Tổng: {money(tot.all)}</b> <span className="text-xs text-slate-400">(tính động)</span></div>
+  </Modal>);
+}
+
+function Reports({ db, init, tab0 }: R) {
+  const [tab, setTab] = useState(init ? 3 : tab0 || 0), [m, setM] = useState(MONTH), [a, setA] = useState(MONTH + '-01'), [z, setZ] = useState(MONTH + '-31'), [q, setQ] = useState(init || '');
+  const vis = (id: number) => db.vis.find((v: R) => v.id === id);
+  const dis = db.dis.map((d: R) => { const xs = db.dx.filter((x: R) => vis(x.vid).in.startsWith(m) && db.dot.find((t: R) => t.id === x.dot).dis === d.id);
+    return [d.name, new Set(xs.map((x: R) => x.dot)).size, new Set(xs.map((x: R) => vis(x.vid).pid)).size]; }).filter((r: any[]) => r[1]);
+  const doctors = db.doc.map((d: R) => { const ev = db.dot.filter((t: R) => t.st === 'KHOI' && t.endVisit && vis(t.endVisit).in.startsWith(m) && db.dx.find((x: R) => x.vid === t.endVisit && x.dot === t.id)?.doc === d.id).length;
+    return ['Bác sĩ', d.name, money(BASE.doc), ev + ' đợt khỏi', money(ev * 1000000), money(BASE.doc + ev * 1000000)]; });
+  const nurses = db.nur.map((d: R) => { const ev = db.sup.filter((s: R) => s.nurse === d.id && vis(s.vid).in.startsWith(m)).length;
+    return ['Y tá', d.name, money(BASE.nur), ev + ' lượt hỗ trợ', money(ev * 200000), money(BASE.nur + ev * 200000)]; });
+  const inR = db.vis.filter((v: R) => v.in.slice(0, 10) >= a && v.in.slice(0, 10) <= z).map((v: R) => visTotal(db, v.id));
+  const fee = inR.reduce((s: number, t: R) => s + t.fee, 0), med = inR.reduce((s: number, t: R) => s + t.med, 0);
+  const pt = q.trim() ? db.pat.find((p: R) => [p.ma, p.name, p.cmt, p.phone].some((x: string) => x.toLowerCase().includes(q.toLowerCase()))) : null;
+  const tabs = ['Thống kê bệnh theo tháng', 'Lương & thưởng', 'Doanh thu', 'Tra cứu bệnh nhân'];
+  return (<div><Head t="Báo cáo & Thống kê" />
+    <div className="flex gap-1 mb-4 border-b">{tabs.map((t, i) => <button key={t} onClick={() => setTab(i)} className={'px-4 py-2 text-sm -mb-px border-b-2 ' + (tab === i ? 'border-blue-600 text-blue-700 font-medium' : 'border-transparent text-slate-500')}>{t}</button>)}</div>
+    {tab < 2 && <div className="mb-4 w-48"><Fld l="Chọn tháng"><input type="month" className={inp} value={m} onChange={e => setM(e.target.value)} /></Fld></div>}
+    {tab === 0 && <Tbl heads={['Bệnh', 'Số đợt mắc (DISTINCT ma_dot)', 'Số bệnh nhân (DISTINCT ma_benh_nhan)']} rows={dis} />}
+    {tab === 1 && <Salary db={db} m={m} />}
+    {tab === 2 && <div><div className="flex gap-3 mb-4 w-96"><Fld l="Từ ngày"><input type="date" className={inp} value={a} onChange={e => setA(e.target.value)} /></Fld><Fld l="Đến ngày"><input type="date" className={inp} value={z} onChange={e => setZ(e.target.value)} /></Fld></div>
+      <div className="grid grid-cols-3 gap-4">{[['Tổng tiền khám/chữa', fee], ['Tổng tiền thuốc', med], ['Tổng doanh thu', fee + med]].map(([l, v]) => <div key={l as string} className="bg-white border rounded-xl p-4"><div className="text-xs text-slate-500">{l}</div><div className="text-xl font-semibold text-blue-700 mt-1">{money(v as number)}</div></div>)}</div><RevenueDetail db={db} a={a} z={z} /></div>}
+    {tab === 3 && <div><div className="mb-4 w-72"><Fld l="Mã / tên / CMT"><input className={inp} placeholder="VD: BN001, An, 0010900…" value={q} onChange={e => setQ(e.target.value)} /></Fld></div>
+      {q && !pt && <p className="text-sm text-slate-500">Không tìm thấy bệnh nhân.</p>}
+      {pt && <div><p className="mb-3 text-sm"><b>{pt.name}</b> ({pt.ma}) · CMT {pt.cmt} · {pt.gender} · {pt.dob}</p>
+        <Tbl heads={['Lần khám', 'Thời điểm', 'Bệnh', 'Bác sĩ phụ trách', 'Lần thứ trong đợt', 'Trạng thái đợt']} rows={db.dx.filter((x: R) => vis(x.vid).pid === pt.id).sort((x: R, y: R) => vis(x.vid).in.localeCompare(vis(y.vid).in)).map((x: R) => { const t = db.dot.find((d: R) => d.id === x.dot);
+          return ['LK' + x.vid, vis(x.vid).in, nm(db.dis, t.dis) + ' (đợt #' + t.id + ')', nm(db.doc, x.doc), db.dx.filter((y: R) => y.dot === x.dot && vis(y.vid).in <= vis(x.vid).in).length, <Badge ok={t.st === 'KHOI'}>{t.st === 'KHOI' ? 'Khỏi' : 'Đang điều trị'}</Badge>]; })} /></div>}</div>}
+  </div>);
+}
+
+const Tabs = ({ items, t, setT }: R) => <div className="flex gap-1 mb-4 border-b">{items.map((x: string, i: number) => <button key={x} onClick={() => setT(i)} className={'px-4 py-2 text-sm -mb-px border-b-2 ' + (t === i ? 'border-blue-600 text-blue-700 font-medium' : 'border-transparent text-slate-500')}>{x}</button>)}</div>;
+const CsvModal = ({ text, onClose }: R) => (<Modal title="Xuất CSV" onClose={onClose}><textarea readOnly className={inp + ' h-48 font-mono text-xs'} value={text} onFocus={e => e.target.select()} /><div className="flex justify-end gap-2 mt-4"><B c="g" onClick={onClose}>Đóng</B><B onClick={() => { try { navigator.clipboard.writeText(text); } catch (e) { } }}>Sao chép</B></div></Modal>);
+
+function Invoice({ db, vid, onClose }: R) {
+  const v = db.vis.find((x: R) => x.id === vid), t = visTotal(db, vid);
+  const Row = ({ a, b }: R) => <div className="flex justify-between"><span>{a}</span><span>{b}</span></div>;
+  return (<Modal title={'Hóa đơn LK' + vid} onClose={onClose}><div className="inv text-sm space-y-1.5">
+    <p className="font-semibold text-base">HÓA ĐƠN KHÁM BỆNH - LK{vid}</p><p>Bệnh nhân: <b>{nm(db.pat, v.pid)}</b> · Thời điểm: {v.in}</p>
+    <p className="font-medium pt-2">Phí khám/chữa</p>{db.dx.filter((x: R) => x.vid === vid).map((x: R) => <Row key={x.dot} a={nm(db.dis, db.dot.find((d: R) => d.id === x.dot).dis) + ' - ' + nm(db.doc, x.doc)} b={money(x.fee)} />)}
+    <p className="font-medium pt-2">Thuốc</p>{db.rx.filter((x: R) => x.vid === vid).flatMap((x: R) => x.items).map((i: R) => <Row key={i.drug} a={nm(db.drg, i.drug) + ' × ' + i.qty} b={money(i.qty * i.price)} />)}
+    <div className="border-t pt-2 mt-2"><Row a="Tổng phí khám/chữa" b={money(t.fee)} /><Row a="Tổng tiền thuốc" b={money(t.med)} /><div className="font-semibold text-blue-700"><Row a="TỔNG CỘNG" b={money(t.all)} /></div></div></div>
+    <div className="flex justify-end gap-2 mt-5"><B c="g" onClick={onClose}>Đóng</B><B onClick={() => window.print()}>In / Lưu PDF</B></div></Modal>);
+}
+
+function RevenueDetail({ db, a, z }: R) {
+  const [inv, setInv] = useState<number | null>(null), [csv, setCsv] = useState('');
+  const vs = db.vis.filter((v: R) => v.in.slice(0, 10) >= a && v.in.slice(0, 10) <= z);
+  return (<div className="mt-5"><div className="flex justify-between items-center mb-2"><h3 className="font-medium text-slate-700">Chi tiết theo lượt khám (đối soát)</h3>
+    <B c="g" onClick={() => setCsv(['Lượt khám,Bệnh nhân,Ngày,Phí khám chữa,Tiền thuốc,Tổng', ...vs.map((v: R) => { const t = visTotal(db, v.id); return ['LK' + v.id, nm(db.pat, v.pid), v.in.slice(0, 10), t.fee, t.med, t.all].join(','); })].join('\n'))}>Xuất CSV</B></div>
+    <Tbl heads={['Lượt khám', 'Bệnh nhân', 'Ngày', 'Phí khám/chữa', 'Tiền thuốc', 'Tổng', '']} rows={vs.map((v: R) => { const t = visTotal(db, v.id); return ['LK' + v.id, nm(db.pat, v.pid), v.in.slice(0, 10), money(t.fee), money(t.med), money(t.all), <button className="text-blue-700 hover:underline" onClick={() => setInv(v.id)}>Hóa đơn</button>]; })} />
+    {inv && <Invoice db={db} vid={inv} onClose={() => setInv(null)} />}{csv && <CsvModal text={csv} onClose={() => setCsv('')} />}</div>);
+}
+
+function Salary({ db, m }: R) {
+  const [d, setD] = useState<R | null>(null), [csv, setCsv] = useState('');
+  const vis = (id: number) => db.vis.find((v: R) => v.id === id);
+  const ev = (kind: string, id: number): any[][] => kind === 'doc'
+    ? db.dot.filter((t: R) => t.st === 'KHOI' && t.endVisit && vis(t.endVisit).in.startsWith(m) && db.dx.find((x: R) => x.vid === t.endVisit && x.dot === t.id)?.doc === id).map((t: R) => ['Đợt #' + t.id, nm(db.pat, t.pid), nm(db.dis, t.dis), t.end])
+    : db.sup.filter((s: R) => s.nurse === id && vis(s.vid).in.startsWith(m)).map((s: R) => ['LK' + s.vid, nm(db.pat, vis(s.vid).pid), s.role, vis(s.vid).in]);
+  const rows = [...db.doc.map((x: R) => ({ ...x, kind: 'doc' })), ...db.nur.map((x: R) => ({ ...x, kind: 'nur' }))].map((x: R) => { const n = ev(x.kind, x.id).length, bonus = n * (x.kind === 'doc' ? 1000000 : 200000); return { x, n, bonus, base: BASE[x.kind], tot: BASE[x.kind] + bonus }; });
+  return (<div><div className="flex justify-between items-center mb-2"><span className="text-xs text-slate-500">Lương cơ bản là số liệu mẫu (lược đồ chưa có cột này).</span>
+    <B c="g" onClick={() => setCsv(['Vai trò,Nhân viên,Lương cơ bản,Sự kiện thưởng,Tiền thưởng,Tổng lương', ...rows.map((r: R) => [r.x.kind === 'doc' ? 'Bác sĩ' : 'Y tá', r.x.name, r.base, r.n, r.bonus, r.tot].join(','))].join('\n'))}>Xuất CSV</B></div>
+    <Tbl heads={['Vai trò', 'Nhân viên', 'Lương cơ bản', 'Sự kiện thưởng', 'Tiền thưởng', 'Tổng lương', '']} rows={rows.map((r: R) => [r.x.kind === 'doc' ? 'Bác sĩ' : 'Y tá', r.x.name, money(r.base), r.n + (r.x.kind === 'doc' ? ' đợt khỏi' : ' lượt hỗ trợ'), money(r.bonus), money(r.tot), <button className="text-blue-700 hover:underline" onClick={() => setD(r)}>Chi tiết</button>])} />
+    {d && <Modal title={'Sự kiện thưởng - ' + d.x.name} onClose={() => setD(null)}><Tbl heads={d.x.kind === 'doc' ? ['Đợt', 'Bệnh nhân', 'Bệnh', 'Ngày khỏi'] : ['Lượt khám', 'Bệnh nhân', 'Vai trò', 'Thời điểm']} rows={ev(d.x.kind, d.x.id)} />
+      <p className="text-sm mt-3 text-right">Tổng thưởng: <b>{money(d.bonus)}</b></p></Modal>}
+    {csv && <CsvModal text={csv} onClose={() => setCsv('')} />}</div>);
+}
+
+function Dots({ db, up }: R) {
+  const [f, setF] = useState('ALL'), [q, setQ] = useState(''), [cf, setCf] = useState<R | null>(null);
+  const key = (d: R) => d.st === 'KHOI' ? 'KHOI' : db.dot.some((o: R) => o.pid === d.pid && o.dis === d.dis && o.st === 'KHOI' && o.start < d.start) ? 'TAI_PHAT' : 'DANG';
+  const lastV = (d: R) => db.dx.filter((x: R) => x.dot === d.id).map((x: R) => db.vis.find((v: R) => v.id === x.vid)).sort((a: R, b: R) => b.in.localeCompare(a.in))[0];
+  const rows = db.dot.filter((d: R) => (f === 'ALL' || key(d) === f) && (nm(db.pat, d.pid) + nm(db.dis, d.dis)).toLowerCase().includes(q.toLowerCase())).sort((a: R, b: R) => b.id - a.id);
+  const badge: R = { KHOI: <Badge ok>Khỏi</Badge>, DANG: <Badge>Đang điều trị</Badge>, TAI_PHAT: <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">Tái phát (đang mở)</span> };
+  return (<div><Head t="Điều trị - Đợt bệnh"><input className={inp + ' !w-52'} placeholder="Tìm bệnh nhân / bệnh…" value={q} onChange={e => setQ(e.target.value)} />
+    <select className={inp + ' !w-44'} value={f} onChange={e => setF(e.target.value)}><option value="ALL">Tất cả</option><option value="DANG">Đang mở</option><option value="TAI_PHAT">Tái phát</option><option value="KHOI">Đã khỏi</option></select></Head>
+    <Tbl heads={['Mã đợt', 'Bệnh nhân', 'Bệnh', 'Bắt đầu', 'Kết thúc', 'Số lần khám', 'Bác sĩ (lần gần nhất)', 'Trạng thái', '']} rows={rows.map((d: R) => [
+      '#' + d.id, nm(db.pat, d.pid), nm(db.dis, d.dis), d.start, d.end || '—', db.dx.filter((x: R) => x.dot === d.id).length,
+      nm(db.doc, db.dx.find((x: R) => x.dot === d.id && x.vid === lastV(d)?.id)?.doc), badge[key(d)],
+      d.st !== 'KHOI' ? <B c="g" onClick={() => setCf(d)}>Kết thúc đợt — khỏi</B> : '']) } />
+    {cf && <Modal title="Xác nhận kết thúc đợt" onClose={() => setCf(null)}><p className="text-sm">Đánh dấu đợt <b>#{cf.id}</b> ({nm(db.dis, cf.dis)} - {nm(db.pat, cf.pid)}) là <b>khỏi</b>? Thưởng bác sĩ sẽ tính cho bác sĩ phụ trách ở lần khám gần nhất của đợt.</p>
+      <div className="flex justify-end gap-2 mt-5"><B c="g" onClick={() => setCf(null)}>Hủy</B><B onClick={() => { const lv = lastV(cf); if (lv) up({ dot: db.dot.map((d: R) => d.id === cf.id ? { ...d, st: 'KHOI', end: lv.in.slice(0, 10), endVisit: lv.id } : d) }); setCf(null); }}>Xác nhận</B></div></Modal>}</div>);
+}
+
+function RxPage({ db, up }: R) {
+  const [sel, setSel] = useState<number | null>(null), [nw, setNw] = useState<number | null>(null), [r, setR] = useState<R>({ drug: db.drg[0]?.id, qty: 1, guide: '' }), [err, setErr] = useState('');
+  const rx = sel ? db.rx.find((x: R) => x.id === sel) : null;
+  const sum = (x: R) => x.items.reduce((s: number, i: R) => s + i.qty * i.price, 0);
+  const add = () => {
+    const d = db.drg.find((x: R) => x.id === +r.drug);
+    if (+r.qty < 1 || +r.qty > d.stock) return setErr('Số lượng không hợp lệ hoặc vượt tồn kho (' + d.stock + ').');
+    if (rx.items.some((i: R) => i.drug === d.id)) return setErr('Thuốc đã có trong đơn.');
+    up({ rx: db.rx.map((x: R) => x.id === sel ? { ...x, items: [...x.items, { drug: d.id, qty: +r.qty, price: d.price, guide: r.guide }] } : x), drg: db.drg.map((x: R) => x.id === d.id ? { ...x, stock: x.stock - +r.qty } : x) });
+    setErr(''); setR({ ...r, qty: 1, guide: '' });
+  };
+  const rm = (k: number) => { const i = rx.items[k]; up({ rx: db.rx.map((x: R) => x.id === sel ? { ...x, items: x.items.filter((_: R, j: number) => j !== k) } : x), drg: db.drg.map((x: R) => x.id === i.drug ? { ...x, stock: x.stock + i.qty } : x) }); };
+  return (<div><Head t="Đơn thuốc"><B onClick={() => setNw(db.vis[0]?.id)}>+ Tạo đơn</B></Head>
+    <Tbl heads={['Mã đơn', 'Lượt khám', 'Bệnh nhân', 'Ngày kê', 'Số thuốc', 'Thành tiền', '']} rows={[...db.rx].reverse().map((x: R) => ['DT' + x.id, 'LK' + x.vid, nm(db.pat, db.vis.find((v: R) => v.id === x.vid).pid), x.date, x.items.length, money(sum(x)), <button className="text-blue-700 hover:underline" onClick={() => { setErr(''); setSel(x.id); }}>Chi tiết</button>])} />
+    {nw && <Modal title="Tạo đơn thuốc" onClose={() => setNw(null)}><Fld l="Lượt khám"><select className={inp} value={nw} onChange={e => setNw(+e.target.value)}>{db.vis.map((v: R) => <option key={v.id} value={v.id}>LK{v.id} - {nm(db.pat, v.pid)} - {v.in}</option>)}</select></Fld>
+      <div className="flex justify-end gap-2 mt-5"><B c="g" onClick={() => setNw(null)}>Hủy</B><B onClick={() => { const id = Math.max(0, ...db.rx.map((x: R) => x.id)) + 1; up({ rx: [...db.rx, { id, vid: nw, date: db.vis.find((v: R) => v.id === nw).in.slice(0, 10), items: [] }] }); setNw(null); setErr(''); setSel(id); }}>Tạo & thêm thuốc</B></div></Modal>}
+    {rx && <Modal wide title={'Đơn thuốc DT' + rx.id + ' - LK' + rx.vid} onClose={() => setSel(null)}>{err && <p className="text-red-600 text-sm mb-3 bg-red-50 p-2 rounded">{err}</p>}
+      <Tbl heads={['Thuốc', 'Số lượng', 'Đơn giá chốt', 'Thành tiền', 'Hướng dẫn', '']} rows={rx.items.map((i: R, k: number) => [nm(db.drg, i.drug), i.qty, money(i.price), money(i.qty * i.price), i.guide || '—', <button className="text-red-600 hover:underline" onClick={() => rm(k)}>Xóa</button>])} />
+      <div className="grid grid-cols-4 gap-2 items-end mt-4"><Fld l="Thuốc"><select className={inp} value={r.drug} onChange={e => setR({ ...r, drug: e.target.value })}>{db.drg.map((d: R) => <option key={d.id} value={d.id}>{d.name} (kho {d.stock})</option>)}</select></Fld>
+        <Fld l="Số lượng"><input type="number" className={inp} value={r.qty} onChange={e => setR({ ...r, qty: e.target.value })} /></Fld><Fld l="Hướng dẫn"><input className={inp} value={r.guide} onChange={e => setR({ ...r, guide: e.target.value })} /></Fld><B onClick={add}>+ Thêm thuốc</B></div>
+      <p className="text-right text-sm mt-4">Tổng tiền đơn: <b className="text-blue-700">{money(sum(rx))}</b></p></Modal>}</div>);
+}
+
+function HR({ db, set, used }: R) {
+  const [t, setT] = useState(0), [m, setM] = useState(MONTH);
+  return (<div><Tabs items={['Bác sĩ', 'Y tá', 'Lương & thưởng']} t={t} setT={setT} />
+    {t === 0 && <Crud title="Bác sĩ" rows={db.doc} setRows={set('doc')} fields={SF([{ k: 'bac', l: 'Bậc nghề' }])} inUse={used('dx', 'doc')} lock={['tt', 'DANG_LAM', 'NGHI_VIEC']} />}
+    {t === 1 && <Crud title="Y tá" rows={db.nur} setRows={set('nur')} fields={SF([{ k: 'trinh', l: 'Trình độ' }])} inUse={used('sup', 'nurse')} lock={['tt', 'DANG_LAM', 'NGHI_VIEC']} />}
+    {t === 2 && <div><Head t="Lương & thưởng"><div className="w-44"><input type="month" className={inp} value={m} onChange={e => setM(e.target.value)} /></div></Head><Salary db={db} m={m} /></div>}</div>);
+}
+
+function CmAssign({ db, up }: R) {
+  const [d, setD] = useState<number>(db.doc[0]?.id);
+  const has = (c: number) => db.dcm.some((x: R) => x.doc === d && x.cm === c);
+  return (<div className="mt-6 bg-white border rounded-xl p-4"><h3 className="font-medium mb-3">Chuyên môn của bác sĩ (quan hệ M:N)</h3>
+    <select className={inp + ' !w-64 mb-3'} value={d} onChange={e => setD(+e.target.value)}>{db.doc.map((x: R) => <option key={x.id} value={x.id}>{x.name}</option>)}</select>
+    <div className="flex flex-wrap gap-4 text-sm">{db.cm.map((c: R) => <label key={c.id} className="flex items-center gap-1.5"><input type="checkbox" checked={has(c.id)} onChange={() => up({ dcm: has(c.id) ? db.dcm.filter((x: R) => !(x.doc === d && x.cm === c.id)) : [...db.dcm, { doc: d, cm: c.id }] })} />{c.name}</label>)}</div></div>);
+}
+
+function Catalog({ db, up, set, used }: R) {
+  const [t, setT] = useState(0);
+  return (<div><Tabs items={['Bệnh', 'Thuốc', 'Chuyên môn', 'Tài khoản & phân quyền']} t={t} setT={setT} />
+    {t === 0 && <Crud title="Danh mục bệnh" rows={db.dis} setRows={set('dis')} fields={[{ k: 'name', l: 'Tên bệnh', req: true }, { k: 'mota', l: 'Mô tả' }]} inUse={used('dot', 'dis')} />}
+    {t === 1 && <Crud title="Danh mục thuốc" rows={db.drg} setRows={set('drg')} fields={[{ k: 'name', l: 'Tên thuốc', req: true }, { k: 'unit', l: 'Đơn vị' }, { k: 'price', l: 'Đơn giá hiện tại', type: 'number' }, { k: 'stock', l: 'Tồn kho', type: 'number' }]} inUse={(r: R) => db.rx.some((x: R) => x.items.some((i: R) => i.drug === r.id))} />}
+    {t === 2 && <div><Crud title="Chuyên môn" rows={db.cm} setRows={set('cm')} fields={[{ k: 'name', l: 'Tên chuyên môn', req: true }]} inUse={used('dcm', 'cm')} /><CmAssign db={db} up={up} /></div>}
+    {t === 3 && <Crud title="Tài khoản & phân quyền" rows={db.acc} setRows={set('acc')} fields={[{ k: 'name', l: 'Tên đăng nhập', req: true }, { k: 'role', l: 'Vai trò', opts: ['Quản trị / Lễ tân', 'Bác sĩ', 'Y tá'] }, { k: 'tt', l: 'Trạng thái', opts: ['HOAT_DONG', 'KHOA'] }]} lock={['tt', 'HOAT_DONG', 'KHOA']} />}</div>);
+}
+
+const NAV = [['dash', 'Tổng quan', '🏠'], ['pat', 'Bệnh nhân', '📋'], ['vis', 'Lượt khám', '🔍'], ['dot', 'Điều trị', '🩺'], ['rx', 'Đơn thuốc', '💊'], ['hr', 'Nhân sự & lương', '👥'], ['rep', 'Báo cáo', '📊'], ['cat', 'Danh mục & cài đặt', '⚙️']];
+const PF = [{ k: 'ma', l: 'Mã BN', req: true }, { k: 'name', l: 'Họ tên', req: true }, { k: 'cmt', l: 'CMT/CCCD', req: true }, { k: 'dob', l: 'Ngày sinh', type: 'date' }, { k: 'gender', l: 'Giới tính', opts: ['Nam', 'Nữ'] }, { k: 'phone', l: 'SĐT' }, { k: 'address', l: 'Địa chỉ' }, { k: 'tt', l: 'Trạng thái', opts: ['HOAT_DONG', 'KHOA'] }];
+const SF = (x: R[]) => [{ k: 'name', l: 'Họ tên', req: true }, { k: 'cmt', l: 'CMT/CCCD', req: true }, { k: 'phone', l: 'SĐT' }, ...x, { k: 'tn', l: 'Thâm niên (năm)', type: 'number' }, { k: 'tt', l: 'Trạng thái', opts: ['DANG_LAM', 'NGHI_VIEC'] }];
+
+function App() {
+  const [db, setDb] = useState<R>({
+    ...seed, pat: seed.pat.map((p: R) => ({ ...p, tt: 'HOAT_DONG' })),
+    cm: [{ id: 1, name: 'Nội tổng quát' }, { id: 2, name: 'Nội tiết' }, { id: 3, name: 'Tiêu hóa' }, { id: 4, name: 'Tai mũi họng' }],
+    dcm: [{ doc: 1, cm: 1 }, { doc: 1, cm: 4 }, { doc: 2, cm: 2 }, { doc: 2, cm: 3 }],
+    acc: [{ id: 1, name: 'admin', role: 'Quản trị / Lễ tân', tt: 'HOAT_DONG' }, { id: 2, name: 'bs.duc', role: 'Bác sĩ', tt: 'HOAT_DONG' }, { id: 3, name: 'yt.lan', role: 'Y tá', tt: 'HOAT_DONG' }],
+  }), [page, setPage] = useState('dash'), [rq, setRq] = useState(''), [tab0, setTab0] = useState(0), [nv, setNv] = useState(false), [gq, setGq] = useState(''), [nt, setNt] = useState(false);
+  const sr = useRef<HTMLInputElement>(null);
+  const up = (p: R) => setDb((d: R) => ({ ...d, ...p }));
+  const go = (pg: string, o: R = {}) => { setRq(o.q || ''); setTab0(o.tab || 0); setNv(!!o.nv); setPage(pg); setNt(false); };
+  const notis = [...db.drg.filter((d: R) => d.stock < 20).map((d: R) => 'Thuốc ' + d.name + ' sắp hết (còn ' + d.stock + ')'),
+    ...db.vis.filter((v: R) => !db.dx.some((x: R) => x.vid === v.id)).map((v: R) => 'LK' + v.id + ' (' + nm(db.pat, v.pid) + ') chưa có chẩn đoán')];
+  useEffect(() => { const h = (e: KeyboardEvent) => { if ((e.metaKey || e.ctrlKey) && e.key === 'k') { e.preventDefault(); sr.current?.focus(); } }; window.addEventListener('keydown', h); return () => window.removeEventListener('keydown', h); }, []);
+  const set = (k: string) => (r: R[]) => up({ [k]: r });
+  const used = (k: string, f: string) => (r: R) => db[k].some((x: R) => x[f] === r.id);
+  return (<div className="flex min-h-screen">
+    <aside className="w-60 shrink-0 bg-[#06295a] text-white flex flex-col">
+      <div className="flex items-center gap-3 px-5 py-5"><div className="w-10 h-10 rounded-lg bg-white text-blue-600 flex items-center justify-center text-2xl font-bold">＋</div><div className="font-semibold leading-tight">Phòng Khám<br />Tư Nhân</div></div>
+      <nav className="px-3 mt-2 space-y-1.5">{NAV.map(([k, l, ic]) => <button key={k} onClick={() => go(k)} className={'w-full flex items-center gap-3 text-left px-4 py-3 rounded-lg text-[15px] ' + (page === k ? 'bg-blue-600 font-semibold' : 'text-blue-50 hover:bg-white/10')}><span className="w-5 text-center">{ic}</span>{l}</button>)}</nav></aside>
+    <div className="flex-1 min-w-0"><header className="h-16 bg-white border-b px-6 flex items-center gap-6">
+      <h1 className="font-semibold text-lg text-slate-800 whitespace-nowrap">Phòng Khám Tư Nhân</h1>
+      <div className="relative flex-1 max-w-md"><span className="absolute left-3 top-2 text-slate-400">🔍</span>
+        <input ref={sr} value={gq} onChange={e => setGq(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && gq.trim()) { go('rep', { q: gq.trim() }); setGq(''); } }} placeholder="Tìm kiếm bệnh nhân, mã BN, số điện thoại…" className="w-full border border-slate-200 rounded-lg pl-9 pr-14 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        <kbd className="absolute right-3 top-2.5 text-xs text-slate-400">⌘ K</kbd></div>
+      <div className="ml-auto flex items-center gap-5">
+        <div className="relative"><button onClick={() => setNt(!nt)} className="relative text-xl">🔔{notis.length > 0 && <span className="absolute -top-1.5 -right-2 bg-blue-600 text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center">{notis.length}</span>}</button>
+          {nt && <div className="absolute right-0 top-9 w-80 bg-white border rounded-lg shadow-lg z-40 p-2 text-sm">{notis.length ? notis.map((n: string) => <div key={n} className="px-2 py-2 border-b last:border-0 text-slate-700">{n}</div>) : <div className="p-2 text-slate-400">Không có thông báo</div>}</div>}</div>
+        <div className="flex items-center gap-2.5"><div className="w-9 h-9 rounded-full bg-blue-100 text-blue-700 font-semibold flex items-center justify-center text-sm">NV</div><div className="leading-tight"><div className="text-sm font-semibold text-slate-800">Nguyễn Văn A</div><div className="text-xs text-slate-500">Quản lý phòng khám</div></div></div></div></header>
+      <main className="p-6">
+        {page === 'dash' && <Dashboard db={db} go={go} />}
+        {page === 'pat' && <Crud title="Bệnh nhân" rows={db.pat} setRows={set('pat')} fields={PF} inUse={used('vis', 'pid')} lock={['tt', 'HOAT_DONG', 'KHOA']} view={(r: R) => go('rep', { q: r.ma })} />}
+        {page === 'vis' && <Visits key={String(nv)} db={db} up={up} autoNew={nv} />}
+        {page === 'dot' && <Dots db={db} up={up} />}
+        {page === 'rx' && <RxPage db={db} up={up} />}
+        {page === 'hr' && <HR db={db} set={set} used={used} />}
+        {page === 'cat' && <Catalog db={db} up={up} set={set} used={used} />}
+                {page === 'rep' && <Reports key={rq + '|' + tab0} db={db} init={rq} tab0={tab0} />}
+      </main></div></div>);
+}
+ReactDOM.createRoot(document.getElementById('root')!).render(<App />);
+</script>
+<script>
+try {
+  var out = Babel.transform(document.getElementById('src').textContent, { presets: [['typescript', { isTSX: true, allExtensions: true }], 'react'] }).code;
+  var s = document.createElement('script'); s.text = out; document.body.appendChild(s);
+} catch (e) { document.getElementById('root').textContent = 'Lỗi biên dịch: ' + e.message; }
+</script>
+</body>
+</html>

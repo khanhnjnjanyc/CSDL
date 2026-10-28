@@ -1,0 +1,179 @@
+<!-- MODAL THÊM / SỬA BỆNH NHÂN -->
+<div class="modal fade" id="patientModal" tabindex="-1">
+  <div class="modal-dialog">
+    <form class="modal-content" onsubmit="savePatient(event)">
+      <div class="modal-header">
+        <h6 class="modal-title fw-bold" id="ptModalTitle">Hồ sơ Bệnh nhân</h6>
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="modal"
+        ></button>
+      </div>
+      <div class="modal-body small">
+        <input type="hidden" id="ptId" />
+        <div class="row g-2">
+          <div class="col-6">
+            <label class="form-label">Mã bệnh nhân *</label>
+            <input
+              type="text"
+              id="ptCode"
+              class="form-control form-control-sm"
+              placeholder="BN006"
+              required
+            />
+          </div>
+          <div class="col-6">
+            <label class="form-label">Số CMT/CCCD *</label>
+            <input
+              type="text"
+              id="ptCmt"
+              class="form-control form-control-sm"
+              placeholder="001000000006"
+              required
+            />
+          </div>
+          <div class="col-12">
+            <label class="form-label">Họ và tên *</label>
+            <input
+              type="text"
+              id="ptName"
+              class="form-control form-control-sm"
+              required
+            />
+          </div>
+          <div class="col-6">
+            <label class="form-label">Ngày sinh *</label>
+            <input
+              type="date"
+              id="ptDob"
+              class="form-control form-control-sm"
+              value="1999-01-01"
+              required
+            />
+          </div>
+          <div class="col-6">
+            <label class="form-label">Giới tính *</label>
+            <select id="ptGender" class="form-select form-select-sm">
+              <option value="Nam">Nam</option>
+              <option value="Nu">Nữ</option>
+              <option value="Khac">Khác</option>
+            </select>
+          </div>
+          <div class="col-6">
+            <label class="form-label">Số điện thoại</label>
+            <input
+              type="text"
+              id="ptPhone"
+              class="form-control form-control-sm"
+            />
+          </div>
+          <div class="col-6">
+            <label class="form-label">Địa chỉ</label>
+            <input
+              type="text"
+              id="ptAddress"
+              class="form-control form-control-sm"
+              value="Hà Nội"
+            />
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="submit" class="btn btn-teal btn-sm">Lưu Hồ sơ</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- MODAL GHI NHẬN Y TÁ HỖ TRỢ -->
+<div class="modal fade" id="nurseModal" tabindex="-1">
+  <div class="modal-dialog">
+    <form class="modal-content" onsubmit="saveNurseSupport(event)">
+      <div class="modal-header">
+        <h6 class="modal-title fw-bold">
+          Ghi nhận Sự kiện Y tá Hỗ trợ (Tính năng #7)
+        </h6>
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="modal"
+        ></button>
+      </div>
+      <div class="modal-body small">
+        <input type="hidden" id="nsVisitId" />
+        <div class="mb-2">
+          <label class="form-label">Y tá thực hiện *</label>
+          <select
+            id="nsNurse"
+            class="form-select form-select-sm"
+            required
+          ></select>
+        </div>
+        <div class="mb-2">
+          <label class="form-label">Vai trò công việc *</label>
+          <input
+            type="text"
+            id="nsRole"
+            class="form-control form-control-sm"
+            value="Tiếp đón & Đo sinh hiệu"
+            required
+          />
+        </div>
+        <div class="mb-2">
+          <label class="form-label">Thời điểm thực hiện *</label>
+          <input
+            type="datetime-local"
+            id="nsTime"
+            class="form-control form-control-sm"
+            value="2026-10-25T08:35"
+            required
+          />
+        </div>
+        <div class="mb-2">
+          <label class="form-label">Ghi chú</label>
+          <input type="text" id="nsNote" class="form-control form-control-sm" />
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="submit" class="btn btn-teal btn-sm">
+          Lưu sự kiện (+200.000đ thưởng)
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- MODAL CĂN CỨ BỆNH NHÂN CHO TRUY VẤN 1 (CHỨC NĂNG LÕI A) -->
+<div class="modal fade" id="q1EvidenceModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h6 class="modal-title fw-bold text-teal" id="q1ModalTitle">
+          Danh sách Bệnh nhân & Đợt mắc làm căn cứ
+        </h6>
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="modal"
+        ></button>
+      </div>
+      <div class="modal-body small">
+        <table class="table table-sm table-bordered align-middle mb-0">
+          <thead>
+            <tr>
+              <th>Mã BN</th>
+              <th>Họ tên bệnh nhân</th>
+              <th>Mã đợt (Episode)</th>
+              <th>Ngày bắt đầu</th>
+              <th>Số lượt khám trong tháng</th>
+              <th>Trạng thái đợt</th>
+              <th>Mở hồ sơ</th>
+            </tr>
+          </thead>
+          <tbody id="q1ModalBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>

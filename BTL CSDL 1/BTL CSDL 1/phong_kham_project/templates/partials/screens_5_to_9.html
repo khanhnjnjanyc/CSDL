@@ -1,0 +1,706 @@
+<!-- =========================================================
+     MÀN HÌNH 5: ĐƠN THUỐC (TÍNH NĂNG #8)
+     ========================================================= -->
+<div id="screen-5" class="screen-section">
+  <h4 class="fw-bold mb-3">5. Quản lý Đơn thuốc & Cấp phát (Tính năng #8)</h4>
+
+  <div
+    class="mc-card p-3 mb-4 border-top border-3 border-success role-admin-doc"
+  >
+    <h6 class="fw-bold text-teal mb-2">
+      <i class="bi bi-prescription2 me-1"></i>Kê đơn thuốc nhiều dòng (Tự động
+      chốt giá tại thời điểm kê & tính tổng tiền)
+    </h6>
+    <div class="row g-2 mb-3 small">
+      <div class="col-md-5">
+        <label class="form-label fw-semibold">Thuộc Lượt khám *</label>
+        <select id="prVisit" class="form-select form-select-sm"></select>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label fw-semibold">Thời điểm kê / cấp *</label>
+        <input
+          type="datetime-local"
+          id="prDate"
+          class="form-control form-control-sm"
+          value="2026-10-25T09:10"
+        />
+      </div>
+      <div class="col-md-4">
+        <label class="form-label fw-semibold"
+          >Trạng thái đơn (R8: Chỉ DA_CAP mới tính doanh thu)</label
+        >
+        <select id="prStatus" class="form-select form-select-sm">
+          <option value="DA_CAP">DA_CAP — Đã cấp thuốc & trừ tồn kho</option>
+          <option value="DA_KE">DA_KE — Mới kê đơn (Chưa cấp)</option>
+        </select>
+      </div>
+    </div>
+
+    <table class="table table-sm table-bordered align-middle small mb-2">
+      <thead>
+        <tr>
+          <th style="width: 36%">Chọn thuốc (Tồn kho & Giá hiện hành)</th>
+          <th style="width: 14%">Số lượng</th>
+          <th style="width: 18%">Đơn giá chốt (đ)</th>
+          <th style="width: 24%">Hướng dẫn dùng</th>
+          <th style="width: 8%">Xóa</th>
+        </tr>
+      </thead>
+      <tbody id="prLinesBody"></tbody>
+    </table>
+
+    <div class="d-flex justify-content-between align-items-center">
+      <button
+        type="button"
+        class="btn btn-outline-teal btn-sm"
+        onclick="addPrescriptionRow()"
+      >
+        <i class="bi bi-plus-lg me-1"></i>Thêm dòng thuốc
+      </button>
+      <div class="fw-bold fs-6">
+        Tổng tiền đơn thuốc:
+        <span class="text-danger" id="prTempTotal">0</span> đ
+      </div>
+      <button
+        type="button"
+        class="btn btn-teal btn-sm"
+        onclick="submitPrescription()"
+      >
+        <i class="bi bi-save me-1"></i>Lưu Đơn Thuốc
+      </button>
+    </div>
+  </div>
+
+  <div class="mc-card p-3">
+    <h6 class="fw-bold mb-2">Danh sách Đơn thuốc đã lưu</h6>
+    <div class="table-responsive">
+      <table class="table table-bordered align-middle small mb-0">
+        <thead>
+          <tr>
+            <th>Mã đơn</th>
+            <th>Lượt khám & Bệnh nhân</th>
+            <th>Ngày kê</th>
+            <th>Trạng thái & Ngày cấp</th>
+            <th>Chi tiết thuốc (SL × Giá chốt)</th>
+            <th>Tổng tiền</th>
+            <th>Thao tác</th>
+          </tr>
+        </thead>
+        <tbody id="prTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- =========================================================
+     MÀN HÌNH 6: NHÂN VIÊN (TÍNH NĂNG #2)
+     ========================================================= -->
+<div id="screen-6" class="screen-section">
+  <h4 class="fw-bold mb-3">
+    6. Quản lý Bác sĩ, Y tá & Thông tin nghề nghiệp (Tính năng #2)
+  </h4>
+
+  <div class="mc-card p-3 mb-4 role-admin-only">
+    <h6 class="fw-bold text-teal mb-2">
+      Thêm Bác sĩ / Y tá mới (Kế thừa NGUOI -> NHAN_VIEN)
+    </h6>
+    <form onsubmit="submitStaff(event)" class="row g-2 small">
+      <div class="col-md-2">
+        <label class="form-label">Nhóm nhân viên</label>
+        <select
+          id="stRole"
+          class="form-select form-select-sm"
+          onchange="toggleStaffFields()"
+        >
+          <option value="BAC_SI">Bác sĩ</option>
+          <option value="Y_TA">Y tá</option>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">Mã NV *</label>
+        <input
+          type="text"
+          id="stEmpCode"
+          class="form-control form-control-sm"
+          placeholder="NV012"
+          required
+        />
+      </div>
+      <div class="col-md-2" id="stDocCodeWrap">
+        <label class="form-label">Mã Bác sĩ *</label>
+        <input
+          type="text"
+          id="stDocCode"
+          class="form-control form-control-sm"
+          placeholder="BS012"
+        />
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Họ và tên *</label>
+        <input
+          type="text"
+          id="stName"
+          class="form-control form-control-sm"
+          required
+        />
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Số CMT/CCCD *</label>
+        <input
+          type="text"
+          id="stCmt"
+          class="form-control form-control-sm"
+          required
+        />
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">Ngày sinh</label>
+        <input
+          type="date"
+          id="stDob"
+          class="form-control form-control-sm"
+          value="1988-05-15"
+          required
+        />
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">Giới tính</label>
+        <select id="stGender" class="form-select form-select-sm">
+          <option value="Nam">Nam</option>
+          <option value="Nu">Nữ</option>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">Ngày vào làm</label>
+        <input
+          type="date"
+          id="stHireDate"
+          class="form-control form-control-sm"
+          value="2024-01-01"
+          required
+        />
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">Trình độ đào tạo</label>
+        <input
+          type="text"
+          id="stLevel"
+          class="form-control form-control-sm"
+          value="Thạc sĩ"
+        />
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">Thâm niên (năm)</label>
+        <input
+          type="number"
+          id="stExp"
+          class="form-control form-control-sm"
+          value="5"
+          min="0"
+        />
+      </div>
+      <div class="col-md-2 d-flex align-items-end">
+        <button type="submit" class="btn btn-teal btn-sm w-100">
+          Thêm Nhân viên
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-md-7">
+      <div class="mc-card p-3">
+        <h6 class="fw-bold">Danh sách Bác sĩ</h6>
+        <table class="table table-sm table-bordered small mb-0">
+          <thead>
+            <tr>
+              <th>Mã BS</th>
+              <th>Mã NV</th>
+              <th>Họ tên</th>
+              <th>Bậc nghề / Trình độ</th>
+              <th>Chuyên môn</th>
+              <th>Thâm niên</th>
+            </tr>
+          </thead>
+          <tbody id="stDoctorsBody"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="col-md-5">
+      <div class="mc-card p-3">
+        <h6 class="fw-bold">Danh sách Y tá</h6>
+        <table class="table table-sm table-bordered small mb-0">
+          <thead>
+            <tr>
+              <th>Mã Y tá</th>
+              <th>Mã NV</th>
+              <th>Họ tên</th>
+              <th>Trình độ</th>
+              <th>Thâm niên</th>
+            </tr>
+          </thead>
+          <tbody id="stNursesBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- =========================================================
+     MÀN HÌNH 7: BÁO CÁO 4 CHỨC NĂNG LÕI (A, B, D + XUẤT CSV)
+     ========================================================= -->
+<div id="screen-7" class="screen-section">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <h4 class="fw-bold mb-0">
+        7. Báo cáo Nghiệp vụ Tháng (Chức năng lõi A, B, D & Tính năng #10)
+      </h4>
+      <small class="text-muted"
+        >Mốc tháng tính theo khoảng nửa mở [ngày đầu tháng, ngày đầu tháng kế
+        tiếp)</small
+      >
+    </div>
+    <div class="d-flex gap-2 align-items-center">
+      <label class="small fw-semibold">Chọn tháng/năm:</label>
+      <input
+        type="month"
+        id="rpMonth"
+        class="form-control form-control-sm w-auto"
+        value="2026-10"
+        onchange="loadReports()"
+      />
+      <button class="btn btn-sm btn-outline-dark" onclick="window.print()">
+        <i class="bi bi-printer me-1"></i>In / PDF
+      </button>
+    </div>
+  </div>
+
+  <!-- CHỨC NĂNG LÕI A: THỐNG KÊ BỆNH THEO THÁNG -->
+  <div class="mc-card p-3 mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <div>
+        <h6 class="fw-bold text-teal mb-0">
+          A. Thống kê bệnh theo tháng (Truy vấn 1)
+        </h6>
+        <small class="text-muted"
+          >Chỉ tiêu đếm rõ
+          <b>Số bệnh nhân duy nhất (`COUNT(DISTINCT d.ma_benh_nhan)`)</b> và Số
+          đợt mắc (`COUNT(DISTINCT d.ma_dot)`), không đếm trùng số lượt
+          khám.</small
+        >
+      </div>
+      <a
+        id="btnExportDiseases"
+        href="/api/export/diseases?month=2026-10"
+        class="btn btn-sm btn-outline-teal"
+        ><i class="bi bi-download me-1"></i>Xuất CSV</a
+      >
+    </div>
+    <table class="table table-sm table-bordered align-middle small mb-0">
+      <thead>
+        <tr>
+          <th>Hạng</th>
+          <th>Mã bệnh</th>
+          <th>Tên bệnh</th>
+          <th>Số bệnh nhân duy nhất (Chỉ tiêu chính)</th>
+          <th>Số đợt mắc (Tái phát tính riêng)</th>
+          <th>Căn cứ đối chiếu</th>
+        </tr>
+      </thead>
+      <tbody id="rpQ1Body"></tbody>
+    </table>
+  </div>
+
+  <!-- CHỨC NĂNG LÕI B: TÍNH LƯƠNG NHÂN VIÊN -->
+  <div class="mc-card p-3 mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <div>
+        <h6 class="fw-bold text-teal mb-0">
+          B. Bảng tính lương Bác sĩ & Y tá (Truy vấn 2)
+        </h6>
+        <small class="text-muted">
+          <b>Công thức:</b> Bác sĩ =
+          <code>7.000.000đ + 1.000.000đ × Số đợt KHỎI</code> (tính cho BS tại
+          lượt khám kết thúc đợt có <code>ngay_ket_thuc</code> trong tháng). Y
+          tá = <code>5.000.000đ + 200.000đ × Số sự kiện hỗ trợ</code> (có
+          <code>thoi_diem</code> trong tháng).
+        </small>
+      </div>
+      <a
+        id="btnExportPayroll"
+        href="/api/export/payroll?month=2026-10"
+        class="btn btn-sm btn-outline-teal"
+        ><i class="bi bi-download me-1"></i>Xuất CSV Lương</a
+      >
+    </div>
+    <table class="table table-sm table-bordered align-middle small mb-2">
+      <thead>
+        <tr>
+          <th>Vai trò</th>
+          <th>Mã NV</th>
+          <th>Mã BS/YT</th>
+          <th>Họ tên</th>
+          <th>Lương nền</th>
+          <th>Số ca/sự kiện thưởng</th>
+          <th>Thành tiền thưởng</th>
+          <th>Cách tính đối chiếu</th>
+          <th>Tổng lương</th>
+        </tr>
+      </thead>
+      <tbody id="rpQ2Body"></tbody>
+    </table>
+
+    <div class="accordion small" id="accPayrollEvidence">
+      <div class="accordion-item">
+        <h2 class="accordion-header">
+          <button
+            class="accordion-button collapsed py-2 small fw-semibold"
+            type="button"
+            data-bs-toggle="collapse"
+            data-bs-target="#collapseEvidence"
+          >
+            <i class="bi bi-card-checklist me-2 text-teal"></i>Xem danh sách
+            Episode đã khỏi & Sự kiện Y tá hỗ trợ làm căn cứ tính thưởng trong
+            tháng
+          </button>
+        </h2>
+        <div id="collapseEvidence" class="accordion-collapse collapse">
+          <div class="accordion-body row g-3">
+            <div class="col-md-6">
+              <div class="fw-bold mb-1">
+                1. Các Episode KHỎI trong tháng (Căn cứ thưởng Bác sĩ):
+              </div>
+              <table class="table table-sm table-bordered mb-0">
+                <thead>
+                  <tr>
+                    <th>Mã đợt</th>
+                    <th>Bệnh nhân</th>
+                    <th>Bệnh</th>
+                    <th>Ngày khỏi</th>
+                    <th>Lượt KT</th>
+                    <th>Bác sĩ nhận thưởng</th>
+                  </tr>
+                </thead>
+                <tbody id="rpQ2BsEvidence"></tbody>
+              </table>
+            </div>
+            <div class="col-md-6">
+              <div class="fw-bold mb-1">
+                2. Các sự kiện hỗ trợ `ma_ho_tro` (Căn cứ thưởng Y tá):
+              </div>
+              <table class="table table-sm table-bordered mb-0">
+                <thead>
+                  <tr>
+                    <th>Mã HT</th>
+                    <th>Lượt khám</th>
+                    <th>Y tá</th>
+                    <th>Vai trò</th>
+                    <th>Thời điểm</th>
+                  </tr>
+                </thead>
+                <tbody id="rpQ2YtEvidence"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CHỨC NĂNG LÕI D: BÁO CÁO DOANH THU -->
+  <div class="mc-card p-3">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <div>
+        <h6 class="fw-bold text-teal mb-0">
+          D. Báo cáo Doanh thu & Bảng dòng giao dịch đối chiếu (Truy vấn 4)
+        </h6>
+        <small class="text-muted">
+          <b>Quy tắc ghi nhận:</b> Tiền khám/chữa tính theo
+          <code>thoi_diem_vao</code> của lượt khám; Tiền thuốc chỉ tính đơn
+          <code>DA_CAP</code> theo <code>thoi_diem_cap</code>. Hai phần tổng hợp
+          độc lập rồi mới cộng.
+        </small>
+      </div>
+      <a
+        id="btnExportRevenue"
+        href="/api/export/revenue?month=2026-10"
+        class="btn btn-sm btn-outline-teal"
+        ><i class="bi bi-download me-1"></i>Xuất CSV Doanh thu</a
+      >
+    </div>
+
+    <div class="row g-3 mb-3 text-center">
+      <div class="col-md-4">
+        <div class="p-2 bg-light rounded border">
+          Tiền khám/chữa: <b class="text-teal fs-6" id="rpQ4Exam">0 đ</b>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="p-2 bg-light rounded border">
+          Tiền thuốc (`DA_CAP`):
+          <b class="text-success fs-6" id="rpQ4Med">0 đ</b>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="p-2 bg-light rounded border">
+          Tổng Doanh thu tháng:
+          <b class="text-danger fs-6" id="rpQ4Total">0 đ</b>
+        </div>
+      </div>
+    </div>
+
+    <div class="row g-3 small">
+      <div class="col-md-6">
+        <div class="fw-bold mb-1">
+          Bảng đối chiếu các dòng Phí khám/chữa phát sinh:
+        </div>
+        <table class="table table-sm table-bordered mb-0">
+          <thead>
+            <tr>
+              <th>Lượt khám</th>
+              <th>Thời điểm vào</th>
+              <th>Bệnh nhân</th>
+              <th>Bệnh (Đợt)</th>
+              <th>Phí khám</th>
+            </tr>
+          </thead>
+          <tbody id="rpQ4ExamLines"></tbody>
+        </table>
+      </div>
+      <div class="col-md-6">
+        <div class="fw-bold mb-1">
+          Bảng đối chiếu các dòng Thuốc đã cấp (`DA_CAP`):
+        </div>
+        <table class="table table-sm table-bordered mb-0">
+          <thead>
+            <tr>
+              <th>Mã đơn</th>
+              <th>Thời điểm cấp</th>
+              <th>Tên thuốc</th>
+              <th>SL × Giá chốt</th>
+              <th>Thành tiền</th>
+            </tr>
+          </thead>
+          <tbody id="rpQ4MedLines"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- =========================================================
+     MÀN HÌNH 8: DANH MỤC (TÍNH NĂNG #3, #4)
+     ========================================================= -->
+<div id="screen-8" class="screen-section">
+  <h4 class="fw-bold mb-3">
+    8. Quản lý Danh mục Bệnh, Thuốc & Đơn vị tính (Tính năng #3, #4)
+  </h4>
+  <div class="row g-3">
+    <div class="col-md-5">
+      <div class="mc-card p-3">
+        <h6 class="fw-bold text-teal">Danh mục Bệnh (Tính năng #3)</h6>
+        <form
+          onsubmit="submitDisease(event)"
+          class="row g-2 mb-3 role-admin-only"
+        >
+          <div class="col-5">
+            <input
+              type="text"
+              id="catDiseaseName"
+              class="form-control form-control-sm"
+              placeholder="Tên bệnh..."
+              required
+            />
+          </div>
+          <div class="col-5">
+            <input
+              type="text"
+              id="catDiseaseDesc"
+              class="form-control form-control-sm"
+              placeholder="Mô tả..."
+            />
+          </div>
+          <div class="col-2">
+            <button class="btn btn-teal btn-sm w-100">Thêm</button>
+          </div>
+        </form>
+        <table class="table table-sm table-bordered small mb-0">
+          <thead>
+            <tr>
+              <th>Mã</th>
+              <th>Tên bệnh</th>
+              <th>Mô tả</th>
+              <th class="role-admin-only">Xóa</th>
+            </tr>
+          </thead>
+          <tbody id="catDiseasesBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="col-md-7">
+      <div class="mc-card p-3">
+        <h6 class="fw-bold text-teal">
+          Danh mục Thuốc, Đơn vị tính & Giá hiện hành (Tính năng #4)
+        </h6>
+        <form
+          onsubmit="submitMedicine(event)"
+          class="row g-2 mb-3 role-admin-only"
+        >
+          <div class="col-4">
+            <input
+              type="text"
+              id="catMedName"
+              class="form-control form-control-sm"
+              placeholder="Tên thuốc..."
+              required
+            />
+          </div>
+          <div class="col-2">
+            <input
+              type="text"
+              id="catMedUnit"
+              class="form-control form-control-sm"
+              placeholder="Đơn vị"
+              required
+            />
+          </div>
+          <div class="col-3">
+            <input
+              type="number"
+              id="catMedPrice"
+              class="form-control form-control-sm"
+              placeholder="Đơn giá"
+              min="0"
+              required
+            />
+          </div>
+          <div class="col-2">
+            <input
+              type="number"
+              id="catMedStock"
+              class="form-control form-control-sm"
+              placeholder="Tồn"
+              min="0"
+              required
+            />
+          </div>
+          <div class="col-1">
+            <button class="btn btn-teal btn-sm w-100">+</button>
+          </div>
+        </form>
+        <table class="table table-sm table-bordered align-middle small mb-0">
+          <thead>
+            <tr>
+              <th>Mã</th>
+              <th>Tên thuốc</th>
+              <th>Đơn vị</th>
+              <th>Giá hiện hành (đ)</th>
+              <th>Tồn kho</th>
+              <th class="role-admin-only">Cập nhật</th>
+            </tr>
+          </thead>
+          <tbody id="catMedicinesBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- =========================================================
+     MÀN HÌNH 9: CÀI ĐẶT & TRỢ GIÚP
+     ========================================================= -->
+<div id="screen-9" class="screen-section">
+  <h4 class="fw-bold mb-3">
+    9. Cài đặt, Quy tắc Nghiệp vụ & Phân quyền 3 Vai trò
+  </h4>
+  <div class="row g-3">
+    <div class="col-md-6">
+      <div class="mc-card p-3 mb-3">
+        <h6 class="fw-bold text-teal">
+          <i class="bi bi-people-fill me-2"></i>Bảng phân quyền 3 Vai trò trong
+          MedCare
+        </h6>
+        <table class="table table-sm table-bordered small mb-0">
+          <thead>
+            <tr>
+              <th>Vai trò</th>
+              <th>Tài khoản Demo</th>
+              <th>Quyền hạn trên ứng dụng</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="fw-bold text-danger">Admin</td>
+              <td><code>001000000010</code></td>
+              <td>
+                Toàn quyền: Nhân viên, Danh mục, Báo cáo lương/doanh thu, Reset
+                dữ liệu demo.
+              </td>
+            </tr>
+            <tr>
+              <td class="fw-bold text-primary">Bác sĩ (Doctor)</td>
+              <td><code>001000000011</code></td>
+              <td>
+                Tra cứu HS bệnh nhân, Ghi nhận khám & chẩn đoán, Theo dõi & Kết
+                thúc khỏi Episode, Kê đơn thuốc.
+              </td>
+            </tr>
+            <tr>
+              <td class="fw-bold text-success">Y tá (Nurse)</td>
+              <td><code>001000000020</code></td>
+              <td>
+                Tiếp nhận bệnh nhân, Cập nhật giờ ra viện, Ghi nhận sự kiện hỗ
+                trợ theo lượt khám (+200k/sự kiện).
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="mc-card p-3 role-admin-only">
+        <h6 class="fw-bold text-teal">Quản trị Dữ liệu Kiểm thử (Demo Data)</h6>
+        <p class="small text-muted mb-2">
+          Đang kết nối CSDL: <b>{{ db_type }}</b>. Bạn có thể nạp lại dữ liệu
+          mẫu gốc tháng 10/2026 bất cứ lúc nào để trình diễn lại từ đầu.
+        </p>
+        <button class="btn btn-warning btn-sm" onclick="resetSqliteData()">
+          <i class="bi bi-arrow-counterclockwise me-1"></i>Khôi phục dữ liệu mẫu
+          tháng 10/2026 (SQLite)
+        </button>
+      </div>
+    </div>
+
+    <div class="col-md-6">
+      <div class="mc-card p-3">
+        <h6 class="fw-bold text-teal">
+          <i class="bi bi-journal-check me-2"></i>Quy tắc xác định Tháng & Ràng
+          buộc toàn vẹn
+        </h6>
+        <ul class="small mb-0">
+          <li class="mb-2">
+            <b>Quy tắc khoảng nửa mở:</b> Mọi báo cáo tháng
+            <code>YYYY-MM</code> đều lọc từ <code>00:00:00</code> ngày mùng 1
+            tháng đó đến trước <code>00:00:00</code> ngày mùng 1 tháng kế tiếp.
+          </li>
+          <li class="mb-2">
+            <b>Thống kê bệnh (Truy vấn 1):</b> Đếm số bệnh nhân duy nhất (<code
+              >COUNT(DISTINCT ma_benh_nhan)</code
+            >) và số đợt điều trị có lượt khám trong tháng.
+          </li>
+          <li class="mb-2">
+            <b>Tính lương (Truy vấn 2):</b> Bác sĩ nhận 1.000.000đ/đợt khỏi dựa
+            trên <code>ngay_ket_thuc</code> của đợt và bác sĩ đứng tên ở
+            <code>ma_lan_kham_ket_thuc</code>. Y tá nhận 200.000đ/sự kiện hỗ trợ
+            dựa trên <code>thoi_diem</code>.
+          </li>
+          <li>
+            <b>Doanh thu (Truy vấn 4):</b> Phí khám tính theo
+            <code>thoi_diem_vao</code>; Tiền thuốc chỉ tính các đơn có trạng
+            thái <code>DA_CAP</code> theo <code>thoi_diem_cap</code>.
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>

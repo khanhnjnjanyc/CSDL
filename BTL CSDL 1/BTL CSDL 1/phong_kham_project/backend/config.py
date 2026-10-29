@@ -5,9 +5,10 @@ from pathlib import Path
 from dotenv import load_dotenv
 from sqlalchemy.engine import URL, make_url
 
+BASE_DIR = Path(__file__).resolve().parent.parent  # thư mục gốc dự án
+load_dotenv(BASE_DIR / ".env")
 load_dotenv()
 
-BASE_DIR = Path(__file__).resolve().parent.parent  # thư mục gốc dự án
 INSECURE_SECRET_KEY = "dev-secret-key"
 
 
@@ -42,7 +43,7 @@ def _build_database_uri():
         return url.render_as_string(hide_password=False)
 
     # Đường dẫn tuyệt đối để không phụ thuộc thư mục chạy (gunicorn, cron...)
-    sqlite_path = Path(_env("SQLITE_PATH", "phong_kham.db"))
+    sqlite_path = Path(_env("SQLITE_PATH", "medcare.db"))
     if not sqlite_path.is_absolute():
         sqlite_path = BASE_DIR / sqlite_path
     url = URL.create("sqlite", database=str(sqlite_path))
@@ -58,22 +59,28 @@ class Config:
     IS_PRODUCTION = APP_ENV == "production"
     SECRET_KEY = _env("SECRET_KEY", INSECURE_SECRET_KEY)
 
-    # Vận hành: mặc định an toàn (không debug, chỉ lắng nghe localhost, không mở CORS)
-    DEBUG = _env("FLASK_DEBUG", "0") == "1" and not IS_PRODUCTION
+    # Vận hành: mặc định an toàn (debug theo cấu hình, cổng 5000)
+    DEBUG = _env("FLASK_DEBUG", "1" if not IS_PRODUCTION else "0") == "1"
     HOST = _env("HOST", "127.0.0.1")
     PORT = int(_env("PORT", "5000"))
-    CORS_ORIGINS = _csv("CORS_ORIGINS")  # ví dụ: http://localhost:5173
+    CORS_ORIGINS = _csv("CORS_ORIGINS")
+
+    # MySQL connection params
+    MYSQL_HOST = _env("MYSQL_HOST", "127.0.0.1")
+    MYSQL_PORT = int(_env("MYSQL_PORT", "3306"))
+    MYSQL_USER = _env("MYSQL_USER", "root")
+    MYSQL_PASSWORD = os.getenv("MYSQL_PASSWORD") or ""
+    MYSQL_DATABASE = _env("MYSQL_DATABASE", "phong_kham")
+
     # Tự tạo SQLite khi khởi động: bật ở dev, tắt ở production (chạy seed một lần)
     AUTO_INIT_DB = _env("AUTO_INIT_DB", "0" if IS_PRODUCTION else "1") == "1"
 
     DATABASE_URI = _DATABASE_URI
-    # Suy ra từ URI thực tế (sqlite / mysql), không phụ thuộc biến DB_TYPE,
-    # để seed_sqlite không chạy nhầm lên MySQL khi chỉ đặt DATABASE_URL.
     DB_TYPE = _DB_URL.get_backend_name()
     SQLITE_PATH = _DB_URL.database if DB_TYPE == "sqlite" else None
 
     @classmethod
-    def get_database_uri(cls):  # giữ để code cũ không bị vỡ
+    def get_database_uri(cls):
         return cls.DATABASE_URI
 
     @classmethod

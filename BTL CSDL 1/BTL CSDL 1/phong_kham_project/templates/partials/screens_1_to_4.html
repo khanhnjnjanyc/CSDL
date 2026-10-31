@@ -1,0 +1,229 @@
+<!-- =========================================================
+     MÀN HÌNH 1: TỔNG QUAN
+     ========================================================= -->
+<div id="screen-1" class="screen-section active">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="fw-bold mb-0">1. Tổng quan Phòng khám</h4>
+    <div class="d-flex align-items-center gap-2 small">
+      <label class="fw-semibold mb-0">Tháng:</label>
+      <input type="month" id="ovMonth" class="form-control form-control-sm" style="width: 160px" value="2026-10" onchange="loadOverview()" />
+    </div>
+  </div>
+
+  <div class="row g-3 mb-3">
+    <div class="col-md-3 col-6">
+      <div class="mc-kpi-primary p-3">
+        <div class="small opacity-75">Lượt khám trong tháng</div>
+        <div class="fs-2 fw-bold" id="ovVisitsMonth">0</div>
+      </div>
+    </div>
+    <div class="col-md-3 col-6">
+      <div class="mc-card p-3 h-100">
+        <div class="small text-muted">Lượt khám hôm nay</div>
+        <div class="fs-2 fw-bold text-teal" id="ovVisitsToday">0</div>
+      </div>
+    </div>
+    <div class="col-md-3 col-6">
+      <div class="mc-card p-3 h-100">
+        <div class="small text-muted">Bệnh nhân đang điều trị</div>
+        <div class="fs-2 fw-bold text-teal" id="ovActivePatients">0</div>
+      </div>
+    </div>
+    <div class="col-md-3 col-6">
+      <div class="mc-card p-3 h-100">
+        <div class="small text-muted">Episode đang mở</div>
+        <div class="fs-2 fw-bold text-teal" id="ovOpenEpisodes">0</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-3">
+    <div class="col-md-4">
+      <div class="mc-card p-3 h-100">
+        <div class="small text-muted">Doanh thu khám chữa</div>
+        <div class="fs-4 fw-bold" id="ovRevExam">0 đ</div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="mc-card p-3 h-100">
+        <div class="small text-muted">Doanh thu thuốc (đơn DA_CAP)</div>
+        <div class="fs-4 fw-bold" id="ovRevMed">0 đ</div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="mc-card p-3 h-100 border-top border-3 border-success">
+        <div class="small text-muted">Tổng doanh thu tháng</div>
+        <div class="fs-4 fw-bold text-danger" id="ovRevTotal">0 đ</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mc-card p-3">
+    <h6 class="fw-bold mb-2">Số bản ghi trong cơ sở dữ liệu</h6>
+    <div class="row g-2" id="ovTableCounts"></div>
+  </div>
+</div>
+
+<!-- =========================================================
+     MÀN HÌNH 2: BỆNH NHÂN & TRA CỨU (TÍNH NĂNG #1, #9)
+     ========================================================= -->
+<div id="screen-2" class="screen-section">
+  <h4 class="fw-bold mb-3">2. Bệnh nhân & Tra cứu</h4>
+
+  <div class="mc-card p-3 mb-4">
+    <div class="row g-2 align-items-end mb-3 small">
+      <div class="col-md-5">
+        <label class="form-label fw-semibold">Tìm theo Mã BN, CMT/CCCD hoặc Họ tên</label>
+        <input type="text" id="ptSearch" class="form-control form-control-sm" placeholder="Nhập từ khóa..." oninput="loadPatients()" />
+      </div>
+      <div class="col-md-3">
+        <label class="form-label fw-semibold">Trạng thái bệnh</label>
+        <!-- LƯU Ý: giá trị value phải khớp với backend/routes/patients.py -->
+        <select id="ptFilterStatus" class="form-select form-select-sm" onchange="loadPatients()">
+          <option value="">Tất cả</option>
+          <option value="DANG_DIEU_TRI">Đang điều trị</option>
+          <option value="KHOI">Đã khỏi / Bình thường</option>
+        </select>
+      </div>
+      <div class="col-md-4 text-end role-admin-nurse">
+        <button type="button" class="btn btn-teal btn-sm" onclick="openPatientModal()">
+          <i class="bi bi-person-plus me-1"></i>Thêm bệnh nhân
+        </button>
+      </div>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-bordered align-middle small mb-0">
+        <thead>
+          <tr><th>Mã BN</th><th>Họ tên</th><th>Trạng thái</th><th>Thao tác</th></tr>
+        </thead>
+        <tbody id="ptTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="mc-card p-3">
+    <h5 class="fw-bold text-teal mb-1" id="ptDetailTitle">Chưa chọn bệnh nhân</h5>
+    <div class="small text-muted mb-3" id="ptDetailSub">Bấm "Hồ sơ" ở danh sách để xem chi tiết.</div>
+
+    <h6 class="fw-bold">A. Lịch sử khám</h6>
+    <div class="table-responsive mb-3">
+      <table class="table table-bordered align-middle small mb-0">
+        <thead><tr><th>Lượt khám</th><th>Thời điểm vào</th><th>Bệnh / Đợt</th><th>Lần thứ</th><th>Bác sĩ</th><th>Phí khám</th><th>Kết luận</th></tr></thead>
+        <tbody id="pt3ABody"></tbody>
+      </table>
+    </div>
+
+    <h6 class="fw-bold">B. Episode đang mở</h6>
+    <div class="table-responsive mb-3">
+      <table class="table table-bordered align-middle small mb-0">
+        <thead><tr><th>Mã đợt</th><th>Bệnh</th><th>Số lượt</th><th>Lượt gần nhất</th><th>Thao tác</th></tr></thead>
+        <tbody id="pt3BBody"></tbody>
+      </table>
+    </div>
+
+    <h6 class="fw-bold">C. Y tá hỗ trợ</h6>
+    <div class="table-responsive mb-3">
+      <table class="table table-bordered align-middle small mb-0">
+        <thead><tr><th>Lượt khám</th><th>Y tá</th><th>Vai trò</th><th>Thời điểm</th><th>Ghi chú</th></tr></thead>
+        <tbody id="pt3CBody"></tbody>
+      </table>
+    </div>
+
+    <h6 class="fw-bold">D. Thuốc đã kê</h6>
+    <div class="table-responsive">
+      <table class="table table-bordered align-middle small mb-0">
+        <thead><tr><th>Đơn thuốc</th><th>Lượt khám</th><th>Ngày kê</th><th>Thuốc</th><th>SL × Giá chốt</th><th>Thành tiền</th></tr></thead>
+        <tbody id="pt3DBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- =========================================================
+     MÀN HÌNH 3: LƯỢT KHÁM & TIẾP NHẬN (TÍNH NĂNG #5, #7)
+     ========================================================= -->
+<div id="screen-3" class="screen-section">
+  <h4 class="fw-bold mb-3">3. Lượt khám & Tiếp nhận</h4>
+
+  <div class="mc-card p-3 mb-4 border-top border-3 border-success">
+    <h6 class="fw-bold text-teal mb-2">Tiếp nhận lượt khám mới</h6>
+    <form onsubmit="submitVisit(event)" class="row g-2 small">
+      <div class="col-md-4">
+        <label class="form-label fw-semibold">Bệnh nhân *</label>
+        <select id="vsPatient" class="form-select form-select-sm" required></select>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label fw-semibold">Thời điểm vào *</label>
+        <input type="datetime-local" id="vsTimeIn" class="form-control form-control-sm" value="2026-10-25T08:30" required />
+      </div>
+      <div class="col-md-4">
+        <label class="form-label fw-semibold">Thời điểm ra (R2: phải ≥ thời điểm vào)</label>
+        <input type="datetime-local" id="vsTimeOut" class="form-control form-control-sm" />
+      </div>
+
+      <div class="col-md-3 role-admin-doc">
+        <label class="form-label fw-semibold">Bệnh chẩn đoán *</label>
+        <select id="vsDisease" class="form-select form-select-sm"></select>
+      </div>
+      <div class="col-md-3 role-admin-doc">
+        <label class="form-label fw-semibold">Episode</label>
+        <!-- LƯU Ý: giá trị value phải khớp với backend/routes/visits_episodes.py (tìm "episode_mode") -->
+        <select id="vsEpisodeMode" class="form-select form-select-sm">
+          <option value="NEW">Tạo episode mới</option>
+          <option value="CONTINUE">Nối vào episode đang mở</option>
+        </select>
+      </div>
+      <div class="col-md-3 role-admin-doc">
+        <label class="form-label fw-semibold">Bác sĩ phụ trách *</label>
+        <select id="vsDoctor" class="form-select form-select-sm"></select>
+      </div>
+      <div class="col-md-3 role-admin-doc">
+        <label class="form-label fw-semibold">Phí khám chữa (đ)</label>
+        <input type="number" id="vsFee" class="form-control form-control-sm" value="200000" min="0" />
+      </div>
+
+      <div class="col-md-9">
+        <label class="form-label fw-semibold">Ghi chú / Kết luận</label>
+        <input type="text" id="vsNote" class="form-control form-control-sm" placeholder="Triệu chứng, kết luận..." />
+      </div>
+      <div class="col-md-3 d-flex align-items-end">
+        <button type="submit" class="btn btn-teal btn-sm w-100"><i class="bi bi-save me-1"></i>Lưu lượt khám</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="mc-card p-3">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <h6 class="fw-bold mb-0">Danh sách Lượt khám</h6>
+      <input type="text" id="vsSearch" class="form-control form-control-sm" style="width: 260px" placeholder="Tìm theo mã / tên bệnh nhân..." oninput="loadVisits()" />
+    </div>
+    <div class="table-responsive">
+      <table class="table table-bordered align-middle small mb-0">
+        <thead><tr><th>Lượt</th><th>Bệnh nhân</th><th>Thời gian</th><th>Chẩn đoán</th><th>Y tá hỗ trợ</th><th>Thao tác</th></tr></thead>
+        <tbody id="vsTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- =========================================================
+     MÀN HÌNH 4: EPISODE ĐIỀU TRỊ (TÍNH NĂNG #6)
+     ========================================================= -->
+<div id="screen-4" class="screen-section">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="fw-bold mb-0">4. Episode điều trị</h4>
+    <select id="epStatusFilter" class="form-select form-select-sm" style="width: 220px" onchange="loadEpisodes()">
+      <option value="">Tất cả trạng thái</option>
+      <option value="DANG_DIEU_TRI">Đang điều trị</option>
+      <option value="KHOI">Đã khỏi</option>
+    </select>
+  </div>
+  <div class="mc-card p-3">
+    <div class="table-responsive">
+      <table class="table table-bordered align-middle small mb-0">
+        <thead><tr><th>Mã đợt</th><th>Bệnh nhân</th><th>Bệnh</th><th>Thời gian</th><th>Các lượt khám</th><th>Trạng thái</th><th>Thao tác</th></tr></thead>
+        <tbody id="epTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>

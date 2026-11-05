@@ -111,8 +111,8 @@ def api_overview():
             "tong_doanh_thu": float(rev_row["tong_doanh_thu"]) if rev_row else 0.0,
         }
 
-        # 5. Thống kê số lượng dòng trong 16 bảng
-        counts = rows_to_dicts(
+        # 5. Thống kê số lượng dòng trong 16 bảng (Ánh xạ tên thực thể nghiệp vụ thuần Việt)
+        raw_counts = rows_to_dicts(
             conn.execute(
                 text("""
             SELECT 'NGUOI' AS ten_bang, COUNT(*) AS so_ban_ghi FROM NGUOI
@@ -135,6 +135,34 @@ def api_overview():
             )
         )
 
+        table_labels = {
+            "NGUOI": "Hồ sơ cá nhân",
+            "NHAN_VIEN": "Hồ sơ nhân sự",
+            "BENH_NHAN": "Hồ sơ bệnh nhân",
+            "LAN_KHAM": "Lượt tiếp nhận",
+            "DOT_DIEU_TRI": "Đợt điều trị",
+            "CHI_TIET_CHAN_DOAN": "Lượt chẩn đoán",
+            "Y_TA_HO_TRO": "Sự kiện hỗ trợ (Y tá)",
+            "CT_DON_THUOC": "Chi tiết cấp phát thuốc",
+            "BAC_SI_CHUYEN_MON": "Chứng chỉ chuyên môn",
+            "BAC_SI": "Bác sĩ",
+            "Y_TA": "Y tá",
+            "CHUYEN_MON": "Danh mục chuyên môn",
+            "BENH": "Danh mục bệnh",
+            "THUOC": "Danh mục thuốc",
+            "DON_THUOC": "Đơn thuốc",
+            "TAI_KHOAN": "Tài khoản người dùng",
+        }
+
+        counts = []
+        for c in raw_counts:
+            tb = c["ten_bang"]
+            counts.append({
+                "ten_bang": tb,
+                "ten_nghiep_vu": table_labels.get(tb, tb),
+                "so_ban_ghi": c["so_ban_ghi"],
+            })
+
     return jsonify({
         "success": True,
         "db_type": Config.DB_TYPE.upper(),
@@ -146,6 +174,105 @@ def api_overview():
         "revenue": rev_data,
         "table_counts": counts,
     })
+
+
+# ==============================================================================
+# XÁC THỰC & ĐĂNG NHẬP PHÂN QUYỀN (BẢNG TAI_KHOAN)
+# ==============================================================================
+@overview_bp.route("/api/login", methods=["POST"])
+def api_login():
+    """
+    Xác thực đăng nhập theo bảng TAI_KHOAN:
+    Khớp CMT, mật khẩu (password_hash) và vai trò (ADMIN, BAC_SI, Y_TA).
+    """
+    data = request.json or {}
+    cmt = str(data.get("cmt") or data.get("username") or "").strip()
+    password = str(data.get("password") or "").strip()
+
+    if not cmt or not password:
+        return jsonify({
+            "success": False,
+            "message": "Vui lòng nhập đầy đủ Số CMT/CCCD và Mật khẩu!",
+            "error": "Thiếu thông tin đăng nhập!",
+        }), 400
+
+    with engine.connect() as conn:
+        user = conn.execute(
+            text("""
+            SELECT tk.cmt, tk.role, tk.password_hash, tk.active,
+                   n.ma_nguoi, n.ho_ten, n.gioi_tinh, n.so_dien_thoai,
+                   nv.ma_nhan_vien,
+                   bs.ma_bac_si
+            FROM TAI_KHOAN tk
+            JOIN NGUOI n ON n.cmt = tk.cmt
+            LEFT JOIN NHAN_VIEN nv ON nv.ma_nguoi = n.ma_nguoi
+            LEFT JOIN BAC_SI bs ON bs.ma_nguoi = n.ma_nguoi
+            WHERE tk.cmt = :cmt
+        """),
+            {"cmt": cmt},
+        ).mappings().first()
+
+        if not user:
+            return jsonify({
+                "success": False,
+                "message": "Tài khoản (Số CMT/CCCD) không tồn tại trong hệ thống!",
+                "error": "Tài khoản không tồn tại!",
+            }), 401
+
+        if user["active"] != 1:
+            return jsonify({
+                "success": False,
+                "message": "Tài khoản này đang bị khóa, vui lòng liên hệ Quản trị viên!",
+                "error": "Tài khoản bị khóa!",
+            }), 403
+
+        if user["password_hash"] != password and user["password_hash"] != f"hash_{password}":
+            return jsonify({
+                "success": False,
+                "message": "Mật khẩu không chính xác!",
+                "error": "Sai mật khẩu!",
+            }), 401
+
+        role = user["role"]
+        title = "Quản trị viên" if role == "ADMIN" else ("Bác sĩ điều trị" if role == "BAC_SI" else "Y tá phòng khám")
+
+        user_info = {
+            "cmt": user["cmt"],
+            "role": role,
+            "title": title,
+            "ho_ten": user["ho_ten"],
+            "ma_nguoi": user["ma_nguoi"],
+            "ma_nhan_vien": user["ma_nhan_vien"],
+            "ma_bac_si": user["ma_bac_si"],
+            "so_dien_thoai": user["so_dien_thoai"],
+        }
+
+    return jsonify({
+        "success": True,
+        "message": f"Đăng nhập thành công! Chào mừng {title} {user_info['ho_ten']}.",
+        "user": user_info,
+    })
+
+
+@overview_bp.route("/api/auth/demo-accounts", methods=["GET"])
+def api_demo_accounts():
+    """Trả về danh sách 3 tài khoản demo sẵn có để đăng nhập nhanh 1-click."""
+    with engine.connect() as conn:
+        accounts = rows_to_dicts(
+            conn.execute(
+                text("""
+            SELECT tk.cmt, tk.role, tk.password_hash AS password,
+                   n.ho_ten, nv.ma_nhan_vien, bs.ma_bac_si
+            FROM TAI_KHOAN tk
+            JOIN NGUOI n ON n.cmt = tk.cmt
+            LEFT JOIN NHAN_VIEN nv ON nv.ma_nguoi = n.ma_nguoi
+            LEFT JOIN BAC_SI bs ON bs.ma_nguoi = n.ma_nguoi
+            WHERE tk.active = 1
+            ORDER BY CASE tk.role WHEN 'ADMIN' THEN 1 WHEN 'BAC_SI' THEN 2 ELSE 3 END
+        """)
+            )
+        )
+    return jsonify({"success": True, "accounts": accounts})
 
 
 # ==============================================================================

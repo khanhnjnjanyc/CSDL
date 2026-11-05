@@ -140,14 +140,27 @@ function editPatient(p) {
 async function savePatient(e) {
   e.preventDefault();
   const id = document.getElementById("ptId").value;
+  const cmt = document.getElementById("ptCmt").value.trim();
+  const phone = document.getElementById("ptPhone").value.trim();
+
+  // Validate CMT/CCCD: 9-12 chữ số dương
+  if (!/^[0-9]{9,12}$/.test(cmt)) {
+    return showAlert("Số CMT/CCCD không hợp lệ! Vui lòng nhập số dương từ 9 đến 12 chữ số.", "danger");
+  }
+
+  // Validate Số điện thoại: 10-11 chữ số, bắt đầu bằng 0
+  if (phone && !/^0[0-9]{9,10}$/.test(phone)) {
+    return showAlert("Số điện thoại không hợp lệ! Vui lòng nhập số điện thoại bắt đầu bằng 0, gồm 10-11 chữ số.", "danger");
+  }
+
   const payload = {
-    ma_benh_nhan: document.getElementById("ptCode").value,
-    cmt: document.getElementById("ptCmt").value,
-    ho_ten: document.getElementById("ptName").value,
+    ma_benh_nhan: document.getElementById("ptCode").value.trim(),
+    cmt: cmt,
+    ho_ten: document.getElementById("ptName").value.trim(),
     ngay_sinh: document.getElementById("ptDob").value,
     gioi_tinh: document.getElementById("ptGender").value,
-    so_dien_thoai: document.getElementById("ptPhone").value,
-    dia_chi: document.getElementById("ptAddress").value,
+    so_dien_thoai: phone,
+    dia_chi: document.getElementById("ptAddress").value.trim(),
   };
   const res = await fetch(id ? `/api/patients/${id}` : "/api/patients", {
     method: id ? "PUT" : "POST",
@@ -155,7 +168,7 @@ async function savePatient(e) {
     body: JSON.stringify(payload),
   });
   const data = await res.json();
-  if (!res.ok) return showAlert(data.error, "danger");
+  if (!res.ok) return showAlert(data.message || data.error, "danger");
   bootstrap.Modal.getInstance(document.getElementById("patientModal")).hide();
   showAlert(data.message);
   loadPatients();

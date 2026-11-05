@@ -104,6 +104,54 @@ def api_staff():
                     "error": f"Thiếu thông tin: {f}!",
                 }), 400
 
+        # Validate CMT/CCCD: 9-12 chữ số dương
+        cmt = str(data.get("cmt", "")).strip()
+        if not cmt.isdigit() or not (9 <= len(cmt) <= 12):
+            return jsonify({
+                "success": False,
+                "message": "Số CMT/CCCD không hợp lệ! Vui lòng nhập số dương từ 9 đến 12 chữ số.",
+                "error": "CMT không hợp lệ!",
+            }), 400
+
+        # Validate ngày vào làm và ngày sinh: Ngày vào làm phải sau ngày sinh và đủ 18 tuổi
+        from datetime import datetime
+        try:
+            dob = datetime.strptime(str(data["ngay_sinh"])[:10], "%Y-%m-%d").date()
+            hire_date = datetime.strptime(str(data["ngay_vao_lam"])[:10], "%Y-%m-%d").date()
+            if hire_date <= dob:
+                return jsonify({
+                    "success": False,
+                    "message": "Ngày vào làm phải sau ngày sinh!",
+                    "error": "Ngày vào làm không hợp lệ!",
+                }), 400
+
+            try:
+                min_hire = dob.replace(year=dob.year + 18)
+            except ValueError:
+                min_hire = dob.replace(year=dob.year + 18, day=28)
+
+            if hire_date < min_hire:
+                return jsonify({
+                    "success": False,
+                    "message": "Nhân viên phải đủ từ 18 tuổi trở lên tính đến ngày vào làm!",
+                    "error": "Chưa đủ 18 tuổi!",
+                }), 400
+        except ValueError:
+            return jsonify({
+                "success": False,
+                "message": "Định dạng ngày sinh hoặc ngày vào làm không đúng (YYYY-MM-DD)!",
+                "error": "Sai định dạng ngày!",
+            }), 400
+
+        # Validate Số điện thoại nếu có
+        sdt = str(data.get("so_dien_thoai") or "").strip()
+        if sdt and (not sdt.isdigit() or not sdt.startswith("0") or len(sdt) not in (10, 11)):
+            return jsonify({
+                "success": False,
+                "message": "Số điện thoại không hợp lệ! Vui lòng nhập số điện thoại bắt đầu bằng 0, gồm 10-11 chữ số.",
+                "error": "Số điện thoại không hợp lệ!",
+            }), 400
+
         if loai == "BAC_SI" and not data.get("ma_bac_si"):
             return jsonify({
                 "success": False,

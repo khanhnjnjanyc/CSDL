@@ -30,6 +30,11 @@
               id="ptCmt"
               class="form-control form-control-sm"
               placeholder="001000000006"
+              pattern="[0-9]{9,12}"
+              maxlength="12"
+              minlength="9"
+              inputmode="numeric"
+              title="Số CMT/CCCD phải là số dương từ 9 đến 12 chữ số"
               required
             />
           </div>
@@ -63,9 +68,15 @@
           <div class="col-6">
             <label class="form-label">Số điện thoại</label>
             <input
-              type="text"
+              type="tel"
               id="ptPhone"
               class="form-control form-control-sm"
+              placeholder="0901234567"
+              pattern="0[0-9]{9,10}"
+              maxlength="11"
+              minlength="10"
+              inputmode="numeric"
+              title="Số điện thoại phải bắt đầu bằng 0, gồm 10 đến 11 chữ số"
             />
           </div>
           <div class="col-6">
@@ -173,6 +184,72 @@
           </thead>
           <tbody id="q1ModalBody"></tbody>
         </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL ĐĂNG NHẬP HỆ THỐNG THEO BẢNG TAI_KHOAN -->
+<div class="modal fade" id="loginModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content shadow border-0">
+      <div class="modal-header bg-teal text-white py-3" style="background-color: var(--mc-teal-primary);">
+        <h5 class="modal-title fw-bold text-white mb-0">
+          <i class="bi bi-shield-lock-fill me-2"></i>Đăng nhập MedCare Clinic
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-4">
+        <p class="text-muted small mb-3">
+          Hệ thống xác thực theo bảng <code>TAI_KHOAN</code> & liên kết hồ sơ <code>NGUOI</code>, <code>NHAN_VIEN</code>, <code>BAC_SI</code>. Vui lòng đăng nhập để phân quyền theo vai trò:
+        </p>
+
+        <!-- 3 NÚT ĐĂNG NHẬP NHANH 1-CLICK -->
+        <div class="mb-3">
+          <label class="form-label fw-bold small text-secondary">Tài khoản Demo (1-Click đăng nhập nhanh):</label>
+          <div class="d-grid gap-2">
+            <button type="button" class="btn btn-outline-primary btn-sm text-start py-2" onclick="quickLogin('ADMIN')">
+              <i class="bi bi-crown text-warning me-2 fs-6"></i><b>Admin (Quản trị viên)</b> — BS. Minh (001000000010)
+              <div class="text-muted small ps-4">Toàn quyền 9 màn hình, xem doanh thu và lương toàn viện</div>
+            </button>
+            <button type="button" class="btn btn-outline-success btn-sm text-start py-2" onclick="quickLogin('BAC_SI')">
+              <i class="bi bi-heart-pulse text-danger me-2 fs-6"></i><b>Bác sĩ điều trị</b> — BS. Lan (001000000011)
+              <div class="text-muted small ps-4">Khám bệnh, kê đơn, kết thúc khỏi đợt, xem lương cá nhân</div>
+            </button>
+            <button type="button" class="btn btn-outline-info btn-sm text-start py-2" onclick="quickLogin('Y_TA')">
+              <i class="bi bi-capsule text-teal me-2 fs-6"></i><b>Y tá phòng khám</b> — Y tá Hoa (001000000020)
+              <div class="text-muted small ps-4">Tiếp đón, cấp phát thuốc, ghi nhận sự kiện nhận thưởng</div>
+            </button>
+          </div>
+        </div>
+
+        <div class="position-relative my-3 text-center">
+          <hr class="text-muted" />
+          <span class="position-absolute top-50 start-50 translate-middle bg-white px-2 small text-muted">Hoặc nhập thông tin</span>
+        </div>
+
+        <!-- FORM ĐĂNG NHẬP TIÊU CHUẨN -->
+        <form id="loginForm" onsubmit="handleLoginSubmit(event)">
+          <div id="loginAlert" class="alert alert-danger py-2 small d-none mb-3"></div>
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">Số CMT/CCCD / Tên đăng nhập *</label>
+            <div class="input-group input-group-sm">
+              <span class="input-group-text"><i class="bi bi-person-badge"></i></span>
+              <input type="text" id="loginCmt" class="form-control" placeholder="001000000010" required />
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">Mật khẩu *</label>
+            <div class="input-group input-group-sm">
+              <span class="input-group-text"><i class="bi bi-key"></i></span>
+              <input type="password" id="loginPassword" class="form-control" value="demo123" placeholder="Mật khẩu..." required />
+            </div>
+            <div class="form-text small text-muted">Mật khẩu mặc định các tài khoản mẫu: <code>demo123</code></div>
+          </div>
+          <button type="submit" class="btn btn-teal w-100 py-2 fw-semibold">
+            <i class="bi bi-box-arrow-in-right me-1"></i>Đăng nhập
+          </button>
+        </form>
       </div>
     </div>
   </div>

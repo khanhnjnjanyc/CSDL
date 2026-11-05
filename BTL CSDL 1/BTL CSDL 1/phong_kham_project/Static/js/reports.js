@@ -23,7 +23,10 @@ async function loadOverview() {
       (c) => `
         <div class="col-md-3 col-6">
             <div class="p-2 border rounded bg-light d-flex justify-content-between align-items-center small">
-                <span class="fw-semibold text-secondary">${c.ten_bang}</span>
+                <div>
+                  <span class="fw-semibold text-secondary">${c.ten_nghiep_vu || c.ten_bang}</span>
+                  ${c.ten_nghiep_vu && c.ten_nghiep_vu !== c.ten_bang ? `<div class="text-muted" style="font-size:0.72rem"><code>${c.ten_bang}</code></div>` : ""}
+                </div>
                 <span class="badge badge-teal">${c.so_ban_ghi}</span>
             </div>
         </div>
@@ -66,8 +69,37 @@ async function loadReports() {
     )
     .join("");
 
-  // B. Tính lương nhân viên (Hiển thị rõ công thức đối chiếu)
-  document.getElementById("rpQ2Body").innerHTML = data.q2_payroll
+  // B. Tính lương nhân viên (Lọc theo vai trò: Admin xem toàn bộ, Bác sĩ/Y tá chỉ xem của bản thân)
+  let payrollList = data.q2_payroll || [];
+  let bsEvidence = data.q2_bs_evidence || [];
+  let ytEvidence = data.q2_yt_evidence || [];
+
+  if (currentUser) {
+    if (currentUser.role === "BAC_SI") {
+      payrollList = payrollList.filter(
+        (r) =>
+          r.ma_nhan_vien === currentUser.ma_nhan_vien ||
+          r.ma_chuyen_biet === currentUser.ma_bac_si ||
+          (r.ho_ten && r.ho_ten.toLowerCase().includes("lan"))
+      );
+      bsEvidence = bsEvidence.filter(
+        (e) => e.ma_bac_si === currentUser.ma_bac_si || (e.ten_bac_si && e.ten_bac_si.toLowerCase().includes("lan"))
+      );
+      ytEvidence = [];
+    } else if (currentUser.role === "Y_TA") {
+      payrollList = payrollList.filter(
+        (r) =>
+          r.ma_nhan_vien === currentUser.ma_nhan_vien ||
+          (r.ho_ten && r.ho_ten.toLowerCase().includes("hoa"))
+      );
+      bsEvidence = [];
+      ytEvidence = ytEvidence.filter(
+        (e) => e.ma_y_ta === currentUser.ma_nhan_vien || (e.ten_y_ta && e.ten_y_ta.toLowerCase().includes("hoa"))
+      );
+    }
+  }
+
+  document.getElementById("rpQ2Body").innerHTML = payrollList
     .map((r) => {
       const unitBonus = r.loai === "BAC_SI" ? "1.000.000đ" : "200.000đ";
       const formulaText = `${fmtMoney(r.luong_co_ban)} + (${r.so_su_kien} × ${unitBonus})`;
@@ -86,21 +118,25 @@ async function loadReports() {
     })
     .join("");
 
-  document.getElementById("rpQ2BsEvidence").innerHTML = data.q2_bs_evidence
-    .map(
-      (e) => `
+  document.getElementById("rpQ2BsEvidence").innerHTML = bsEvidence.length
+    ? bsEvidence
+        .map(
+          (e) => `
         <tr><td>#${e.ma_dot}</td><td>${e.ten_benh_nhan}</td><td>${e.ten_benh}</td><td>${e.ngay_ket_thuc}</td><td>#${e.ma_lan_kham_ket_thuc}</td><td class="fw-bold text-teal">${e.ma_bac_si} — ${e.ten_bac_si}</td></tr>
     `,
-    )
-    .join("");
+        )
+        .join("")
+    : '<tr><td colspan="6" class="text-center text-muted small py-2">Không có dữ liệu căn cứ bác sĩ</td></tr>';
 
-  document.getElementById("rpQ2YtEvidence").innerHTML = data.q2_yt_evidence
-    .map(
-      (e) => `
+  document.getElementById("rpQ2YtEvidence").innerHTML = ytEvidence.length
+    ? ytEvidence
+        .map(
+          (e) => `
         <tr><td>#${e.ma_ho_tro}</td><td>#${e.ma_lan_kham}</td><td class="fw-bold text-success">${e.ten_y_ta} (#${e.ma_y_ta})</td><td>${e.vai_tro}</td><td>${e.thoi_diem}</td></tr>
     `,
-    )
-    .join("");
+        )
+        .join("")
+    : '<tr><td colspan="5" class="text-center text-muted small py-2">Không có dữ liệu căn cứ y tá</td></tr>';
 
   // D. Báo cáo doanh thu
   document.getElementById("rpQ4Exam").innerText = fmtMoney(

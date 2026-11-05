@@ -70,6 +70,7 @@ def api_patients():
     ho_ten = str(data.get("ho_ten", "")).strip()
     ngay_sinh = str(data.get("ngay_sinh", "")).strip()
     gioi_tinh = str(data.get("gioi_tinh", "")).strip()
+    sdt = str(data.get("so_dien_thoai", "")).strip()
 
     if not ma_bn or not cmt or not ho_ten or not ngay_sinh or not gioi_tinh:
         return (
@@ -80,6 +81,29 @@ def api_patients():
             }),
             400,
         )
+
+    # Validate CMT/CCCD: Phải là số dương, từ 9 đến 12 chữ số
+    if not cmt.isdigit() or not (9 <= len(cmt) <= 12):
+        return (
+            jsonify({
+                "success": False,
+                "message": "Số CMT/CCCD không hợp lệ! Vui lòng nhập số dương từ 9 đến 12 chữ số.",
+                "error": "Số CMT/CCCD không hợp lệ!",
+            }),
+            400,
+        )
+
+    # Validate Số điện thoại: Phải là số dương, bắt đầu bằng 0, gồm 10-11 chữ số
+    if sdt:
+        if not sdt.isdigit() or not sdt.startswith("0") or len(sdt) not in (10, 11):
+            return (
+                jsonify({
+                    "success": False,
+                    "message": "Số điện thoại không hợp lệ! Vui lòng nhập số điện thoại bắt đầu bằng 0, gồm 10-11 chữ số.",
+                    "error": "Số điện thoại không hợp lệ!",
+                }),
+                400,
+            )
 
     try:
         with engine.begin() as conn:
@@ -156,6 +180,29 @@ def api_patient_modify(ma_nguoi):
         ho_ten = str(data.get("ho_ten", "")).strip()
         ngay_sinh = str(data.get("ngay_sinh", "")).strip()
         gioi_tinh = str(data.get("gioi_tinh", "")).strip()
+        sdt = str(data.get("so_dien_thoai", "")).strip()
+
+        # Validate CMT nếu có cập nhật
+        if cmt and (not cmt.isdigit() or not (9 <= len(cmt) <= 12)):
+            return (
+                jsonify({
+                    "success": False,
+                    "message": "Số CMT/CCCD không hợp lệ! Vui lòng nhập số dương từ 9 đến 12 chữ số.",
+                    "error": "Số CMT/CCCD không hợp lệ!",
+                }),
+                400,
+            )
+
+        # Validate Số điện thoại nếu có cập nhật
+        if sdt and (not sdt.isdigit() or not sdt.startswith("0") or len(sdt) not in (10, 11)):
+            return (
+                jsonify({
+                    "success": False,
+                    "message": "Số điện thoại không hợp lệ! Vui lòng nhập số điện thoại bắt đầu bằng 0, gồm 10-11 chữ số.",
+                    "error": "Số điện thoại không hợp lệ!",
+                }),
+                400,
+            )
 
         try:
             with engine.begin() as conn:

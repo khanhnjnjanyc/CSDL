@@ -61,7 +61,14 @@ async function loadPrescriptions() {
             </td>
             <td class="fw-bold text-danger">${fmtMoney(d.tong_tien)}</td>
             <td>
-                ${d.trang_thai !== "DA_CAP" ? `<button class="btn btn-sm btn-teal py-0" onclick="changePrStatus(${d.ma_don}, 'DA_CAP')">Xác nhận cấp thuốc</button>` : '<span class="small text-muted">Đã chốt</span>'}
+                ${
+                  d.trang_thai === "DA_KE"
+                    ? `<button class="btn btn-sm btn-teal py-0 me-1" onclick="changePrStatus(${d.ma_don}, 'DA_CAP')"><i class="bi bi-check2-circle me-1"></i>Xác nhận cấp</button>
+                       <button class="btn btn-sm btn-outline-danger py-0" onclick="cancelPrescription(${d.ma_don}, false)"><i class="bi bi-x-circle me-1"></i>Hủy đơn</button>`
+                    : d.trang_thai === "DA_CAP"
+                    ? `<button class="btn btn-sm btn-outline-danger py-0" onclick="cancelPrescription(${d.ma_don}, true)" title="Hủy đơn đã cấp và hoàn trả thuốc về kho"><i class="bi bi-arrow-counterclockwise me-1"></i>Hủy & Hoàn kho</button>`
+                    : '<span class="badge bg-danger"><i class="bi bi-slash-circle me-1"></i>Đã hủy đơn</span>'
+                }
             </td>
         </tr>
     `,
@@ -106,7 +113,25 @@ async function changePrStatus(ma_don, trang_thai) {
     }),
   });
   const data = await res.json();
-  if (!res.ok) return showAlert(data.error, "danger");
+  if (!res.ok) return showAlert(data.message || data.error, "danger");
+  showAlert(data.message);
+  loadPrescriptions();
+}
+
+async function cancelPrescription(ma_don, isCompleted) {
+  const confirmMsg = isCompleted
+    ? `Xác nhận HỦY đơn thuốc #${ma_don}?\nToàn bộ số lượng thuốc trong đơn sẽ được HOÀN TRẢ LẠI VÀO KHO (Cộng lại tồn kho).`
+    : `Xác nhận HỦY đơn thuốc #${ma_don}?`;
+
+  if (!confirm(confirmMsg)) return;
+
+  const res = await fetch(`/api/prescriptions/${ma_don}/status`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ trang_thai: "HUY" }),
+  });
+  const data = await res.json();
+  if (!res.ok) return showAlert(data.message || data.error, "danger");
   showAlert(data.message);
   loadPrescriptions();
 }
@@ -140,18 +165,44 @@ async function loadStaff() {
 async function submitStaff(e) {
   e.preventDefault();
   const role = document.getElementById("stRole").value;
+  const cmt = document.getElementById("stCmt").value.trim();
+  const dobStr = document.getElementById("stDob").value;
+  const hireStr = document.getElementById("stHireDate").value;
+
+  // Validate CMT/CCCD: 9-12 chữ số dương
+  if (!/^[0-9]{9,12}$/.test(cmt)) {
+    return showAlert("Số CMT/CCCD không hợp lệ! Vui lòng nhập số dương từ 9 đến 12 chữ số.", "danger");
+  }
+
+  // Validate Ngày vào làm > Ngày sinh và đủ 18 tuổi
+  if (dobStr && hireStr) {
+    const dob = new Date(dobStr);
+    const hire = new Date(hireStr);
+    if (hire <= dob) {
+      return showAlert("Ngày vào làm phải sau ngày sinh!", "danger");
+    }
+    let age = hire.getFullYear() - dob.getFullYear();
+    const m = hire.getMonth() - dob.getMonth();
+    if (m < 0 || (m === 0 && hire.getDate() < dob.getDate())) {
+      age--;
+    }
+    if (age < 18) {
+      return showAlert("Nhân viên phải đủ từ 18 tuổi trở lên tính đến ngày vào làm!", "danger");
+    }
+  }
+
   const payload = {
     loai: role,
-    ma_nhan_vien: document.getElementById("stEmpCode").value,
-    ma_bac_si: document.getElementById("stDocCode").value,
-    ho_ten: document.getElementById("stName").value,
-    cmt: document.getElementById("stCmt").value,
-    ngay_sinh: document.getElementById("stDob").value,
+    ma_nhan_vien: document.getElementById("stEmpCode").value.trim(),
+    ma_bac_si: document.getElementById("stDocCode").value.trim(),
+    ho_ten: document.getElementById("stName").value.trim(),
+    cmt: cmt,
+    ngay_sinh: dobStr,
     gioi_tinh: document.getElementById("stGender").value,
-    ngay_vao_lam: document.getElementById("stHireDate").value,
+    ngay_vao_lam: hireStr,
     bac_nghe: "Bác sĩ",
-    trinh_do_dao_tao: document.getElementById("stLevel").value,
-    trinh_do: document.getElementById("stLevel").value,
+    trinh_do_dao_tao: document.getElementById("stLevel").value.trim(),
+    trinh_do: document.getElementById("stLevel").value.trim(),
     tham_nien: document.getElementById("stExp").value,
   };
   const res = await fetch("/api/staff", {
@@ -160,7 +211,7 @@ async function submitStaff(e) {
     body: JSON.stringify(payload),
   });
   const data = await res.json();
-  if (!res.ok) return showAlert(data.error, "danger");
+  if (!res.ok) return showAlert(data.message || data.error, "danger");
   showAlert(data.message);
   loadStaff();
 }

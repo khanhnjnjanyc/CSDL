@@ -150,6 +150,11 @@
           type="text"
           id="stCmt"
           class="form-control form-control-sm"
+          pattern="[0-9]{9,12}"
+          maxlength="12"
+          minlength="9"
+          placeholder="001000000012"
+          title="Số CMT/CCCD gồm 9 đến 12 chữ số dương"
           required
         />
       </div>
@@ -408,7 +413,7 @@
   </div>
 
   <!-- CHỨC NĂNG LÕI D: BÁO CÁO DOANH THU -->
-  <div class="mc-card p-3">
+  <div class="mc-card p-3 role-admin-only">
     <div class="d-flex justify-content-between align-items-center mb-2">
       <div>
         <h6 class="fw-bold text-teal mb-0">

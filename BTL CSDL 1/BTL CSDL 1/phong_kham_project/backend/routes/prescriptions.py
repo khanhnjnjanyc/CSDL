@@ -235,13 +235,22 @@ def api_get_prescription(ma_don):
 
 @prescriptions_bp.route("/api/prescriptions/<int:ma_don>/status", methods=["PUT"])
 def api_prescription_status(ma_don):
-    """Cập nhật trạng thái đơn thuốc (DA_CAP, HUY, DA_KE)."""
+    """Cập nhật trạng thái đơn thuốc (DA_CAP, HUY, DA_KE). Hỗ trợ hủy đơn & hoàn kho."""
     data = request.json or {}
     new_status = data.get("trang_thai")
     if not new_status:
         return jsonify({"success": False, "message": "Thiếu trạng thái cập nhật!", "error": "400"}), 400
 
+    new_status = new_status.upper()
+    if new_status not in ("DA_CAP", "DA_KE", "HUY"):
+        return jsonify({
+            "success": False,
+            "message": f"Trạng thái '{new_status}' không hợp lệ! Chỉ chấp nhận: DA_CAP, DA_KE, HUY.",
+            "error": "Trạng thái không hợp lệ!",
+        }), 400
+
     now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    # Theo ràng buộc ck_don_cap: Nếu trang_thai != 'DA_CAP' thì thoi_diem_cap BẮT BUỘC phải là NULL
     tdc = data.get("thoi_diem_cap", now_str).replace("T", " ") if new_status == "DA_CAP" else None
     if tdc and len(tdc) == 16:
         tdc += ":00"
@@ -256,15 +265,39 @@ def api_prescription_status(ma_don):
             if not cur_don:
                 return jsonify({"success": False, "message": "Đơn thuốc không tồn tại!", "error": "404"}), 404
 
-            # Nếu xác nhận cấp thuốc từ trạng thái trước đó chưa cấp -> trừ tồn kho
-            if new_status == "DA_CAP" and cur_don["trang_thai"] != "DA_CAP":
+            prev_status = cur_don["trang_thai"]
+
+            # TRƯỜNG HỢP 1: Xác nhận cấp thuốc từ trạng thái chưa cấp (DA_KE/HUY) -> trừ tồn kho
+            if new_status == "DA_CAP" and prev_status != "DA_CAP":
+                lines = conn.execute(
+                    text("SELECT ma_thuoc, so_luong FROM CT_DON_THUOC WHERE ma_don = :don"),
+                    {"don": ma_don},
+                ).fetchall()
+                # Kiểm tra tồn kho trước khi trừ
+                for line in lines:
+                    cur_stock = conn.execute(
+                        text("SELECT ten_thuoc, ton_kho FROM THUOC WHERE ma_thuoc = :id"),
+                        {"id": line.ma_thuoc},
+                    ).mappings().first()
+                    if cur_stock and cur_stock["ton_kho"] < line.so_luong:
+                        raise ValueError(
+                            f"Thuốc '{cur_stock['ten_thuoc']}' không đủ tồn kho (Còn: {cur_stock['ton_kho']}, yêu cầu: {line.so_luong})!"
+                        )
+                for line in lines:
+                    conn.execute(
+                        text("UPDATE THUOC SET ton_kho = ton_kho - :sl WHERE ma_thuoc = :id"),
+                        {"sl": line.so_luong, "id": line.ma_thuoc},
+                    )
+
+            # TRƯỜNG HỢP 2: Hủy đơn thuốc (hoặc quay về DA_KE) từ trạng thái đã cấp (DA_CAP) -> hoàn tồn kho
+            elif new_status in ("HUY", "DA_KE") and prev_status == "DA_CAP":
                 lines = conn.execute(
                     text("SELECT ma_thuoc, so_luong FROM CT_DON_THUOC WHERE ma_don = :don"),
                     {"don": ma_don},
                 ).fetchall()
                 for line in lines:
                     conn.execute(
-                        text("UPDATE THUOC SET ton_kho = ton_kho - :sl WHERE ma_thuoc = :id"),
+                        text("UPDATE THUOC SET ton_kho = ton_kho + :sl WHERE ma_thuoc = :id"),
                         {"sl": line.so_luong, "id": line.ma_thuoc},
                     )
 
@@ -275,9 +308,56 @@ def api_prescription_status(ma_don):
                 {"tt": new_status, "tdc": tdc, "don": ma_don},
             )
 
+        msg = (
+            f"Đã hủy đơn thuốc #{ma_don} và hoàn trả thuốc về kho thành công!"
+            if new_status == "HUY" and prev_status == "DA_CAP"
+            else f"Đã cập nhật trạng thái đơn #{ma_don} sang {new_status}!"
+        )
+
         return jsonify({
             "success": True,
-            "message": f"Đã cập nhật trạng thái đơn #{ma_don} sang {new_status}!",
+            "message": msg,
+            "ma_don": ma_don,
+            "trang_thai": new_status,
+        })
+    except ValueError as ve:
+        return jsonify({"success": False, "message": str(ve), "error": str(ve)}), 409
+    except Exception as e:
+        status, msg = describe_db_error(e)
+        return jsonify({"success": False, "message": msg, "error": msg}), status
+
+
+@prescriptions_bp.route("/api/prescriptions/<int:ma_don>", methods=["DELETE"])
+def api_delete_prescription(ma_don):
+    """Xóa hoàn toàn đơn thuốc. Nếu đơn đang ở DA_CAP thì hoàn lại tồn kho trước khi xóa."""
+    try:
+        with engine.begin() as conn:
+            cur_don = conn.execute(
+                text("SELECT trang_thai FROM DON_THUOC WHERE ma_don = :don"),
+                {"don": ma_don},
+            ).mappings().first()
+            if not cur_don:
+                return jsonify({"success": False, "message": "Đơn thuốc không tồn tại!", "error": "404"}), 404
+
+            # Nếu đã cấp thuốc thì hoàn kho
+            if cur_don["trang_thai"] == "DA_CAP":
+                lines = conn.execute(
+                    text("SELECT ma_thuoc, so_luong FROM CT_DON_THUOC WHERE ma_don = :don"),
+                    {"don": ma_don},
+                ).fetchall()
+                for line in lines:
+                    conn.execute(
+                        text("UPDATE THUOC SET ton_kho = ton_kho + :sl WHERE ma_thuoc = :id"),
+                        {"sl": line.so_luong, "id": line.ma_thuoc},
+                    )
+
+            # Xóa chi tiết và đơn thuốc
+            conn.execute(text("DELETE FROM CT_DON_THUOC WHERE ma_don = :don"), {"don": ma_don})
+            conn.execute(text("DELETE FROM DON_THUOC WHERE ma_don = :don"), {"don": ma_don})
+
+        return jsonify({
+            "success": True,
+            "message": f"Đã xóa hoàn toàn đơn thuốc #{ma_don}!",
         })
     except Exception as e:
         status, msg = describe_db_error(e)

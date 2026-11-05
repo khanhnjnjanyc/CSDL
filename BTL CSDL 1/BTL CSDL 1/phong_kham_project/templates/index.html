@@ -52,7 +52,7 @@
             <i class="bi bi-clipboard2-pulse-fill"></i>3. Lượt khám
           </a>
           <a
-            class="nav-link role-admin-doc"
+            class="nav-link"
             data-screen="screen-4"
             onclick="switchScreen('screen-4', this)"
           >
@@ -73,14 +73,14 @@
             <i class="bi bi-person-badge-fill"></i>6. Nhân viên
           </a>
           <a
-            class="nav-link"
+            class="nav-link role-admin-only"
             data-screen="screen-7"
             onclick="switchScreen('screen-7', this)"
           >
-            <i class="bi bi-bar-chart-fill"></i>7. Báo cáo & Lương
+            <i class="bi bi-bar-chart-fill"></i>7. Báo cáo (4 Truy vấn)
           </a>
           <a
-            class="nav-link role-admin-only"
+            class="nav-link role-admin-doc"
             data-screen="screen-8"
             onclick="switchScreen('screen-8', this)"
           >
@@ -99,48 +99,32 @@
 
     <!-- KHỐI NỘI DUNG CHÍNH NỀN SÁNG -->
     <div class="mc-main">
-      <!-- TOPBAR: XÁC THỰC TÀI KHOẢN (BẢNG TAI_KHOAN) & PHÂN QUYỀN 3 VAI TRÒ -->
+      <!-- TOPBAR: CHUYỂN ĐỔI VAI TRÒ (ADMIN / BÁC SĨ / Y TÁ) -->
       <header
         class="mc-topbar d-flex justify-content-between align-items-center"
       >
         <div class="d-flex align-items-center gap-3">
           <span class="badge badge-teal px-3 py-2"
-            ><i class="bi bi-shield-lock-fill me-1"></i>Xác thực CSDL: <code>TAI_KHOAN</code></span
+            ><i class="bi bi-heart-pulse me-1"></i>MedCare</span
           >
-          <span class="small text-muted" id="rolePermissionHint"
-            >Đang xác thực quyền hạn theo vai trò...</span
+          <span class="small text-muted text-success fw-medium"
+            >Tận tâm chăm sóc, sức khỏe vẹn toàn</span
           >
         </div>
 
         <div class="d-flex align-items-center gap-2">
-          <!-- THẺ HIỂN THỊ HỒ SƠ NGƯỜI ĐĂNG NHẬP -->
-          <div class="d-flex align-items-center bg-light border rounded px-3 py-1 me-2">
-            <i class="bi bi-person-circle fs-4 text-teal me-2"></i>
-            <div class="text-start lh-sm">
-              <div class="fw-bold small text-dark" id="topbarUserName">Đang tải...</div>
-              <div class="small">
-                <span class="badge" id="topbarRoleBadge">...</span>
-                <span class="text-muted ms-1" style="font-size: 0.75rem" id="topbarUserCode"></span>
-              </div>
-            </div>
-          </div>
-
-          <button type="button" class="btn btn-sm btn-outline-teal" onclick="openLoginModal()">
-            <i class="bi bi-arrow-left-right me-1"></i>Đổi tài khoản
-          </button>
-          <button type="button" class="btn btn-sm btn-outline-secondary" onclick="logout()">
-            <i class="bi bi-box-arrow-right me-1"></i>Đăng xuất
-          </button>
-
-          <!-- Dropdown ẩn để đồng bộ tương thích ngược với code cũ -->
+          <label class="small fw-semibold text-secondary mb-0"
+            >Vai trò đang đăng nhập:</label
+          >
           <select
             id="roleSelector"
-            style="display: none;"
+            class="form-select form-select-sm fw-bold border-success"
+            style="width: 250px"
             onchange="applyRolePermissions()"
           >
-            <option value="ADMIN">ADMIN</option>
-            <option value="BAC_SI">BAC_SI</option>
-            <option value="Y_TA">Y_TA</option>
+            <option value="ADMIN">👑 Admin — Quản trị viên (Toàn quyền)</option>
+            <option value="BAC_SI">🩺 Bác sĩ — BS010 Minh (Chuyên môn)</option>
+            <option value="Y_TA">💉 Y tá — NV020 Hoa (Hỗ trợ)</option>
           </select>
         </div>
       </header>
@@ -162,8 +146,8 @@
           ></button>
         </div>
 
-        {% include 'partials/screens_1_to_4.html' %} {% include
-        'partials/screens_5_to_9.html' %}
+        {% include 'partials/screens_1_to_4.html' %} 
+        {% include 'partials/screens_5_to_9.html' %}
       </main>
     </div>
 

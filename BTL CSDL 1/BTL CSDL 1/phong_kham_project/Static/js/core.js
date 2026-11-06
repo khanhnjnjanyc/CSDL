@@ -4,6 +4,31 @@ let globalPatients = [];
 let globalQ1Evidence = [];
 let currentUser = null;
 
+// Tự gắn token vào mọi lời gọi /api/ và xử lý tập trung 401 (hết phiên) / 403 (không đủ quyền).
+const _nativeFetch = window.fetch.bind(window);
+window.fetch = async (input, init = {}) => {
+  const url = typeof input === "string" ? input : input.url;
+  const isApi = url.startsWith("/api/");
+  if (isApi && currentUser && currentUser.token) {
+    init = {
+      ...init,
+      headers: { ...(init.headers || {}), Authorization: `Bearer ${currentUser.token}` },
+    };
+  }
+  const res = await _nativeFetch(input, init);
+  if (isApi && !url.startsWith("/api/login")) {
+    if (res.status === 401) {
+      localStorage.removeItem("medcare_user");
+      currentUser = null;
+      requireLogin();
+      showAlert("Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại.", "warning");
+    } else if (res.status === 403) {
+      showAlert("Bạn không có quyền thực hiện thao tác này.", "danger");
+    }
+  }
+  return res;
+};
+
 function fmtMoney(val) {
   return Number(val || 0).toLocaleString("vi-VN") + " đ";
 }
@@ -20,6 +45,7 @@ function showAlert(msg, type = "success") {
 // XÁC THỰC NGƯỜI DÙNG & ĐĂNG NHẬP (BẢNG TAI_KHOAN)
 // ==============================================================================
 function initAuth() {
+  currentUser = null;
   const saved = localStorage.getItem("medcare_user");
   if (saved) {
     try {
@@ -28,19 +54,21 @@ function initAuth() {
       currentUser = null;
     }
   }
-
-  // Mặc định tài khoản Quản trị viên nếu chưa đăng nhập
-  if (!currentUser) {
-    currentUser = {
-      cmt: "001000000010",
-      role: "ADMIN",
-      title: "Quản trị viên",
-      ho_ten: "Bac si Minh",
-      ma_nhan_vien: "NV010",
-      ma_bac_si: "BS010",
-    };
-    localStorage.setItem("medcare_user", JSON.stringify(currentUser));
+  // Không còn tự động đăng nhập Admin: chưa có tài khoản hợp lệ thì bắt buộc đăng nhập.
+  if (currentUser && !["ADMIN", "BAC_SI", "Y_TA"].includes(currentUser.role)) {
+    currentUser = null;
   }
+  return !!currentUser;
+}
+
+// Khóa giao diện và buộc người dùng đăng nhập (chưa đăng nhập thì không thấy menu, dữ liệu).
+function requireLogin() {
+  document.body.classList.add("auth-locked");
+  const cmt = document.getElementById("loginCmt");
+  const pw = document.getElementById("loginPassword");
+  if (cmt) cmt.value = "";
+  if (pw) pw.value = "";
+  openLoginModal();
 }
 
 function openLoginModal() {
@@ -75,8 +103,9 @@ async function handleLoginSubmit(e) {
       return;
     }
 
-    currentUser = data.user;
+    currentUser = { ...data.user, token: data.token };
     localStorage.setItem("medcare_user", JSON.stringify(currentUser));
+    document.body.classList.remove("auth-locked");
 
     const modalEl = document.getElementById("loginModal");
     const modal = bootstrap.Modal.getInstance(modalEl);
@@ -100,55 +129,24 @@ async function handleLoginSubmit(e) {
   }
 }
 
-async function quickLogin(role) {
+// Nút tài khoản demo chỉ ĐIỀN SẴN thông tin; người dùng vẫn phải bấm "Đăng nhập".
+function quickLogin(role) {
   let cmt = "001000000010";
   if (role === "BAC_SI") cmt = "001000000011";
   if (role === "Y_TA") cmt = "001000000020";
 
   document.getElementById("loginCmt").value = cmt;
-  document.getElementById("loginPassword").value = "demo123";
-
-  try {
-    const res = await fetch("/api/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ cmt, password: "demo123" }),
-    });
-    const data = await res.json();
-
-    if (!res.ok) {
-      showAlert(data.message || data.error, "danger");
-      return;
-    }
-
-    currentUser = data.user;
-    localStorage.setItem("medcare_user", JSON.stringify(currentUser));
-
-    const modalEl = document.getElementById("loginModal");
-    const modal = bootstrap.Modal.getInstance(modalEl);
-    if (modal) modal.hide();
-
-    applyRolePermissions();
-    showAlert(`Đã chuyển sang vai trò: ${currentUser.title} (${currentUser.ho_ten})`, "success");
-
-    // Tải lại dữ liệu
-    const activeScreen = document.querySelector(".screen-section.active");
-    if (activeScreen) {
-      switchScreenById(activeScreen.id);
-    } else {
-      switchScreenById("screen-1");
-    }
-  } catch (err) {
-    showAlert("Lỗi đăng nhập nhanh!", "danger");
-  }
+  const pw = document.getElementById("loginPassword");
+  pw.value = "demo123";
+  const alertEl = document.getElementById("loginAlert");
+  if (alertEl) alertEl.classList.add("d-none");
+  pw.focus();
 }
 
 function logout() {
   localStorage.removeItem("medcare_user");
   currentUser = null;
-  initAuth();
-  applyRolePermissions();
-  openLoginModal();
+  requireLogin();
 }
 
 function switchScreen(screenId, navEl) {
@@ -207,7 +205,7 @@ async function jumpToRecord(screenId, rowPrefix, idVal) {
 // PHÂN QUYỀN 3 VAI TRÒ DỰA TRÊN TÀI KHOẢN ĐĂNG NHẬP: ADMIN / BAC_SI / Y_TA
 // ==============================================================================
 function applyRolePermissions() {
-  if (!currentUser) initAuth();
+  if (!currentUser && !initAuth()) return requireLogin();
 
   const role = currentUser.role;
   const roleSelector = document.getElementById("roleSelector");
@@ -254,6 +252,10 @@ function applyRolePermissions() {
     }
   }
 
+  // Mô tả quyền hạn hiển thị khi rê chuột vào thẻ người dùng (thanh trên chỉ còn slogan)
+  const userCard = document.getElementById("topbarUserCard");
+  if (userCard && hintEl) userCard.title = hintEl.innerText;
+
   // Ẩn / hiện phần tử theo lớp phân quyền
   document.querySelectorAll(".role-admin-only").forEach((el) => {
     el.style.display = role === "ADMIN" ? "" : "none";
@@ -279,8 +281,113 @@ function applyRolePermissions() {
   }
 }
 
+// ==============================================================================
+// KIỂM TRA DỮ LIỆU NHẬP NGAY TRÊN Ô (CMT, SĐT, NGÀY VÀO LÀM)
+// ==============================================================================
+function fmtDateVN(iso) {
+  return iso ? iso.split("-").reverse().join("/") : "";
+}
+
+// Cộng n năm vào chuỗi ngày YYYY-MM-DD (29/02 -> 28/02 nếu năm đích không nhuận)
+function addYears(iso, n) {
+  const [y, m, d] = iso.split("-").map(Number);
+  let dt = new Date(Date.UTC(y + n, m - 1, d));
+  if (dt.getUTCMonth() !== m - 1) dt = new Date(Date.UTC(y + n, m - 1, 28));
+  return dt.toISOString().slice(0, 10);
+}
+
+// Hiện / xóa thông báo lỗi đỏ ngay dưới ô nhập; khóa nút Lưu khi form còn lỗi.
+function setFieldError(input, msg) {
+  let fb = input.nextElementSibling;
+  if (!fb || !fb.classList.contains("mc-feedback")) {
+    fb = document.createElement("div");
+    fb.className = "invalid-feedback mc-feedback";
+    input.insertAdjacentElement("afterend", fb);
+  }
+  fb.textContent = msg || "";
+  input.classList.toggle("is-invalid", !!msg);
+  input.setCustomValidity(msg || "");
+  if (input.form) {
+    const btn = input.form.querySelector('button[type="submit"]');
+    if (btn) btn.disabled = !!input.form.querySelector(".is-invalid");
+  }
+}
+
+function clearFieldErrors(root) {
+  root.querySelectorAll(".is-invalid").forEach((el) => setFieldError(el, ""));
+}
+
+// Chỉ cho gõ chữ số (chặn dấu trừ, chữ cái, khoảng trắng), giới hạn độ dài, báo lỗi ngay.
+function bindDigitsField(id, { min, max, label, phone }) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const check = () => {
+    const v = el.value;
+    if (!v) return setFieldError(el, "");
+    if (v.length < min) return setFieldError(el, `${label} phải có ít nhất ${min} chữ số.`);
+    if (phone && v[0] !== "0") return setFieldError(el, `${label} phải bắt đầu bằng số 0.`);
+    setFieldError(el, "");
+  };
+  el.addEventListener("input", () => {
+    const raw = el.value;
+    const digits = raw.replace(/\D/g, "");
+    const cleaned = digits.slice(0, max);
+    if (cleaned !== raw) {
+      el.value = cleaned;
+      return setFieldError(
+        el,
+        digits.length > max
+          ? `${label} tối đa ${max} chữ số.`
+          : `${label} chỉ được nhập chữ số (không nhập dấu âm, chữ cái hay khoảng trắng).`,
+      );
+    }
+    check();
+  });
+  el.addEventListener("blur", check);
+}
+
+function checkHireDate() {
+  const dobEl = document.getElementById("stDob");
+  const hireEl = document.getElementById("stHireDate");
+  if (!dobEl || !hireEl) return;
+  if (!dobEl.value) {
+    hireEl.removeAttribute("min");
+    return setFieldError(hireEl, "");
+  }
+  const minHire = addYears(dobEl.value, 18);
+  hireEl.min = minHire;
+  if (!hireEl.value) return setFieldError(hireEl, "");
+  if (hireEl.value <= dobEl.value) {
+    return setFieldError(hireEl, "Ngày vào làm phải sau ngày sinh.");
+  }
+  if (hireEl.value < minHire) {
+    return setFieldError(
+      hireEl,
+      `Nhân viên phải đủ 18 tuổi: ngày vào làm sớm nhất là ${fmtDateVN(minHire)}.`,
+    );
+  }
+  setFieldError(hireEl, "");
+}
+
+function bindInputGuards() {
+  bindDigitsField("ptCmt", { min: 9, max: 12, label: "Số CMT/CCCD" });
+  bindDigitsField("ptPhone", { min: 10, max: 11, label: "Số điện thoại", phone: true });
+  bindDigitsField("stCmt", { min: 9, max: 12, label: "Số CMT/CCCD" });
+  const dob = document.getElementById("stDob");
+  const hire = document.getElementById("stHireDate");
+  if (dob && hire) {
+    dob.addEventListener("change", checkHireDate);
+    hire.addEventListener("change", checkHireDate);
+    checkHireDate();
+  }
+  // Mở lại form bệnh nhân thì xóa lỗi cũ (tránh khóa nút Lưu oan)
+  const pm = document.getElementById("patientModal");
+  if (pm) pm.addEventListener("show.bs.modal", () => clearFieldErrors(pm));
+}
+
 window.onload = () => {
-  initAuth();
+  bindInputGuards();
+  if (!initAuth()) return requireLogin();
   applyRolePermissions();
   loadOverview();
 };

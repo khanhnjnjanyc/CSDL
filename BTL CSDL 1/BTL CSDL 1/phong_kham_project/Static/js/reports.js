@@ -25,7 +25,6 @@ async function loadOverview() {
             <div class="p-2 border rounded bg-light d-flex justify-content-between align-items-center small">
                 <div>
                   <span class="fw-semibold text-secondary">${c.ten_nghiep_vu || c.ten_bang}</span>
-                  ${c.ten_nghiep_vu && c.ten_nghiep_vu !== c.ten_bang ? `<div class="text-muted" style="font-size:0.72rem"><code>${c.ten_bang}</code></div>` : ""}
                 </div>
                 <span class="badge badge-teal">${c.so_ban_ghi}</span>
             </div>
@@ -39,11 +38,11 @@ async function loadOverview() {
 async function loadReports() {
   const month = document.getElementById("rpMonth").value || "2026-10";
   document.getElementById("btnExportDiseases").href =
-    `/api/export/diseases?month=${month}`;
+    `/api/export/diseases?month=${month}&token=${encodeURIComponent(currentUser?.token || "")}`;
   document.getElementById("btnExportPayroll").href =
-    `/api/export/payroll?month=${month}`;
+    `/api/export/payroll?month=${month}&token=${encodeURIComponent(currentUser?.token || "")}`;
   document.getElementById("btnExportRevenue").href =
-    `/api/export/revenue?month=${month}`;
+    `/api/export/revenue?month=${month}&token=${encodeURIComponent(currentUser?.token || "")}`;
 
   const res = await fetch(`/api/reports?month=${month}`);
   const data = await res.json();
@@ -77,24 +76,18 @@ async function loadReports() {
   if (currentUser) {
     if (currentUser.role === "BAC_SI") {
       payrollList = payrollList.filter(
-        (r) =>
-          r.ma_nhan_vien === currentUser.ma_nhan_vien ||
-          r.ma_chuyen_biet === currentUser.ma_bac_si ||
-          (r.ho_ten && r.ho_ten.toLowerCase().includes("lan"))
+        (r) => r.loai === "BAC_SI" && r.ma_chuyen_biet === currentUser.ma_bac_si,
       );
-      bsEvidence = bsEvidence.filter(
-        (e) => e.ma_bac_si === currentUser.ma_bac_si || (e.ten_bac_si && e.ten_bac_si.toLowerCase().includes("lan"))
-      );
+      bsEvidence = bsEvidence.filter((e) => e.ma_bac_si === currentUser.ma_bac_si);
       ytEvidence = [];
     } else if (currentUser.role === "Y_TA") {
       payrollList = payrollList.filter(
-        (r) =>
-          r.ma_nhan_vien === currentUser.ma_nhan_vien ||
-          (r.ho_ten && r.ho_ten.toLowerCase().includes("hoa"))
+        (r) => r.loai === "Y_TA" && r.ma_nhan_vien === currentUser.ma_nhan_vien,
       );
       bsEvidence = [];
+      // Y_TA_HO_TRO.ma_y_ta lưu mã người (ma_nguoi) của y tá
       ytEvidence = ytEvidence.filter(
-        (e) => e.ma_y_ta === currentUser.ma_nhan_vien || (e.ten_y_ta && e.ten_y_ta.toLowerCase().includes("hoa"))
+        (e) => String(e.ma_y_ta) === String(currentUser.ma_nguoi),
       );
     }
   }

@@ -169,3 +169,9 @@ body {
   background-color: #ccfbf1 !important;
   transition: background-color 1.5s ease;
 }
+
+/* Chưa đăng nhập: ẩn menu và nội dung, chỉ hiện hộp thoại đăng nhập */
+.auth-locked aside,
+.auth-locked .mc-main {
+  visibility: hidden;
+}

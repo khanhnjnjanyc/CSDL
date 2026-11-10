@@ -1,18 +1,3 @@
--- =====================================================================
--- BAI TAP LON CSDL - PROJECT 1: QUAN LY PHONG KHAM TU NHAN
--- Yeu cau 2 - MySQL 8.0.16+, InnoDB, utf8mb4
--- Nhom 5. Schema, trigger, du lieu mau va 4 truy van DONG BO voi bao cao
--- "Yeu cau 1 - EER" (ban da sua lan 2).
---
--- Quy uoc nghiep vu (khop muc 1 cua bao cao):
---  * Mot dot dieu tri = mot lan mac benh; tai phat tao ma_dot moi.
---  * Thuong BS cho dot KHOI thuoc ve BS o dong chan doan cua luot ket thuc dot.
---  * Thuong y ta tinh theo tung su kien ho tro (ma_ho_tro).
---  * Doanh thu kham theo thoi_diem_vao; doanh thu thuoc theo thoi_diem_cap,
---    chi tinh don DA_CAP. Day la doanh thu phat sinh, khong phai tien da thu.
---  * Moc thang la khoang nua mo [dau thang, dau thang ke tiep).
--- =====================================================================
-
 CREATE DATABASE IF NOT EXISTS phong_kham
   CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
 USE phong_kham;
@@ -35,12 +20,6 @@ DROP TABLE IF EXISTS BAC_SI;
 DROP TABLE IF EXISTS NHAN_VIEN;
 DROP TABLE IF EXISTS NGUOI;
 SET FOREIGN_KEY_CHECKS = 1;
-
--- ---------------------------------------------------------------------
--- 1. NGUOI va chuyen biet hoa
---    NGUOI -> NHAN_VIEN / BENH_NHAN : overlapping, total
---    NHAN_VIEN -> BAC_SI / Y_TA     : disjoint, total (xem trigger R9)
--- ---------------------------------------------------------------------
 CREATE TABLE NGUOI (
   ma_nguoi INT AUTO_INCREMENT PRIMARY KEY,
   cmt VARCHAR(12) NOT NULL UNIQUE,
@@ -105,9 +84,6 @@ BEGIN
 END$$
 DELIMITER ;
 
--- ---------------------------------------------------------------------
--- 2. Danh muc va chuyen mon
--- ---------------------------------------------------------------------
 CREATE TABLE CHUYEN_MON (
   ma_chuyen_mon INT AUTO_INCREMENT PRIMARY KEY,
   ten_chuyen_mon VARCHAR(100) NOT NULL UNIQUE
@@ -137,10 +113,6 @@ CREATE TABLE THUOC (
   CONSTRAINT ck_thuoc_ton CHECK (ton_kho >= 0)
 ) ENGINE=InnoDB;
 
--- ---------------------------------------------------------------------
--- 3. Lan kham, dot dieu tri va chan doan
---    LAN_KHAM.ma_benh_nhan va DOT_DIEU_TRI.ma_benh_nhan la INT = BENH_NHAN.ma_nguoi
--- ---------------------------------------------------------------------
 CREATE TABLE LAN_KHAM (
   ma_lan_kham INT AUTO_INCREMENT PRIMARY KEY,
   ma_benh_nhan INT NOT NULL,
@@ -160,7 +132,6 @@ CREATE TABLE DOT_DIEU_TRI (
   ngay_ket_thuc DATE,
   trang_thai VARCHAR(20) NOT NULL DEFAULT 'DANG_DIEU_TRI',
   ma_lan_kham_ket_thuc INT,
-  -- R3: cot sinh = 1 khi dot dang mo, NULL khi da khoi => UNIQUE chi chan 2 dot mo
   dot_dang_mo TINYINT GENERATED ALWAYS AS
     (CASE WHEN trang_thai = 'DANG_DIEU_TRI' THEN 1 ELSE NULL END) STORED,
   UNIQUE KEY uq_dot_mo (ma_benh_nhan, ma_benh, dot_dang_mo),
@@ -179,7 +150,7 @@ CREATE TABLE DOT_DIEU_TRI (
 CREATE TABLE CHI_TIET_CHAN_DOAN (
   ma_lan_kham INT NOT NULL,
   ma_dot INT NOT NULL,
-  ma_bac_si VARCHAR(20) NOT NULL,            -- ma nghiep vu BAC_SI.ma_bac_si
+  ma_bac_si VARCHAR(20) NOT NULL,            
   phi_kham_chua DECIMAL(12,0) NOT NULL,
   ket_luan TEXT,
   PRIMARY KEY (ma_lan_kham, ma_dot),
@@ -190,13 +161,11 @@ CREATE TABLE CHI_TIET_CHAN_DOAN (
   INDEX ix_ctcd_dot (ma_dot, ma_lan_kham)
 ) ENGINE=InnoDB;
 
--- R7: luot ket thuc cua dot phai la chinh dong chan doan thuoc dot do (FK ghep)
 ALTER TABLE DOT_DIEU_TRI
   ADD CONSTRAINT fk_dot_lan_ket_thuc
   FOREIGN KEY (ma_lan_kham_ket_thuc, ma_dot)
   REFERENCES CHI_TIET_CHAN_DOAN(ma_lan_kham, ma_dot);
 
--- R5, R6: trigger kiem tra cung benh nhan va khong them vao dot da dong
 DELIMITER $$
 CREATE TRIGGER trg_ctcd_bn_ins BEFORE INSERT ON CHI_TIET_CHAN_DOAN
 FOR EACH ROW
@@ -239,9 +208,7 @@ BEGIN
 END$$
 DELIMITER ;
 
--- ---------------------------------------------------------------------
--- 4. Ho tro y ta, don thuoc, chi tiet don, tai khoan
--- ---------------------------------------------------------------------
+
 CREATE TABLE Y_TA_HO_TRO (
   ma_ho_tro BIGINT AUTO_INCREMENT PRIMARY KEY,
   ma_lan_kham INT NOT NULL,
@@ -261,7 +228,6 @@ CREATE TABLE DON_THUOC (
   trang_thai VARCHAR(20) NOT NULL DEFAULT 'DA_KE',
   thoi_diem_cap DATETIME,
   CONSTRAINT ck_don_status CHECK (trang_thai IN ('DA_KE','DA_CAP','HUY')),
-  -- R8: DA_CAP phai co thoi_diem_cap (khong truoc ngay_ke); DA_KE/HUY khong co thoi_diem_cap
   CONSTRAINT ck_don_cap CHECK (
     (trang_thai = 'DA_CAP' AND thoi_diem_cap IS NOT NULL AND thoi_diem_cap >= ngay_ke)
     OR (trang_thai IN ('DA_KE','HUY') AND thoi_diem_cap IS NULL)
@@ -292,12 +258,6 @@ CREATE TABLE TAI_KHOAN (
   CONSTRAINT fk_tk_nguoi FOREIGN KEY (cmt) REFERENCES NGUOI(cmt)
 ) ENGINE=InnoDB;
 
--- ---------------------------------------------------------------------
--- 5. Du lieu mau: 9 nguoi (6 benh nhan, 2 bac si, 2 y ta; 1 y ta cung la
---    benh nhan), 3 benh, 4 thuoc, 9 lan kham, 7 dot dieu tri,
---    10 dong chan doan, 11 su kien ho tro, 8 don thuoc (13 dong thuoc),
---    3 tai khoan.
--- ---------------------------------------------------------------------
 INSERT INTO NGUOI (ma_nguoi,cmt,ho_ten,ngay_sinh,gioi_tinh,dia_chi,so_dien_thoai) VALUES
 (1,'001000000001','Nguyen An','1998-02-14','Nam','Ha Noi','0900000001'),
 (2,'001000000002','Tran Binh','1985-07-20','Nam','Ha Noi','0900000002'),
@@ -316,7 +276,6 @@ INSERT INTO BAC_SI (ma_nguoi,ma_bac_si,bac_nghe,trinh_do_dao_tao,tham_nien) VALU
 (10,'BS010','Bac si chinh','Thac si',6),(11,'BS011','Bac si','Dai hoc',4);
 INSERT INTO Y_TA (ma_nguoi,trinh_do,tham_nien) VALUES
 (20,'Cao dang',4),(21,'Dai hoc',3);
--- ma_nguoi 21 (Y ta Nam) dong thoi la benh nhan BN006 => minh hoa overlapping
 INSERT INTO BENH_NHAN (ma_nguoi,ma_benh_nhan) VALUES
 (1,'BN001'),(2,'BN002'),(3,'BN003'),(4,'BN004'),(5,'BN005'),(21,'BN006');
 
@@ -359,7 +318,6 @@ INSERT INTO CHI_TIET_CHAN_DOAN (ma_lan_kham,ma_dot,ma_bac_si,phi_kham_chua,ket_l
 (1009,5007,'BS011',200000,'Viem da tiep xuc');
 UPDATE DOT_DIEU_TRI SET ngay_ket_thuc='2026-09-15',trang_thai='KHOI',ma_lan_kham_ket_thuc=1004 WHERE ma_dot=5001;
 UPDATE DOT_DIEU_TRI SET ngay_ket_thuc='2026-10-10',trang_thai='KHOI',ma_lan_kham_ket_thuc=1003 WHERE ma_dot=5003;
--- Tai phat: BN002 mac cum lan nua => dot MOI 5002 (khong mo lai 5001)
 INSERT INTO DOT_DIEU_TRI (ma_dot,ma_benh_nhan,ma_benh,ngay_bat_dau) VALUES (5002,2,1,'2026-10-12');
 INSERT INTO CHI_TIET_CHAN_DOAN (ma_lan_kham,ma_dot,ma_bac_si,phi_kham_chua,ket_luan) VALUES
 (1005,5002,'BS010',220000,'Tai phat cum, mo dot moi');
@@ -377,9 +335,6 @@ INSERT INTO Y_TA_HO_TRO (ma_ho_tro,ma_lan_kham,ma_y_ta,vai_tro,thoi_diem,ghi_chu
 (10,1009,20,'Tiep don','2026-10-22 09:05:00',''),
 (11,1009,20,'Theo doi','2026-10-22 09:30:00','Su kien rieng, duoc tinh rieng');
 
--- 7001-7005: don DA_CAP trong thang 10.
--- 7006 HUY va 7007 DA_KE: khong tinh tien thuoc.
--- 7008 DA_CAP ngay 01/10 cho luot kham 15/09: phi kham tinh thang 9, tien thuoc tinh thang 10.
 INSERT INTO DON_THUOC (ma_don,ma_lan_kham,ngay_ke,trang_thai,thoi_diem_cap) VALUES
 (7001,1001,'2026-10-02 08:50:00','DA_CAP','2026-10-02 09:00:00'),
 (7002,1003,'2026-10-10 10:50:00','DA_CAP','2026-10-10 11:00:00'),
@@ -398,24 +353,16 @@ INSERT INTO CT_DON_THUOC (ma_don,ma_thuoc,so_luong,don_gia_tai_thoi_diem,huong_d
 (7007,4,4,8000,'Khi dau'),
 (7008,2,5,2000,'Hang ngay');
 
--- Tai khoan mau (password_hash chi la gia tri giu cho; khong phai hash that)
 INSERT INTO TAI_KHOAN (cmt,role,password_hash,active) VALUES
 ('001000000010','BAC_SI','demo_hash_bs010',1),
 ('001000000011','BAC_SI','demo_hash_bs011',1),
 ('001000000020','Y_TA','demo_hash_yt020',1);
 
--- ---------------------------------------------------------------------
--- 6. Bon truy van nghiep vu. Doi tham so truoc khi chay.
--- ---------------------------------------------------------------------
 SET @thang_bat_dau = '2026-10-01';
 SET @thang_sau = DATE_ADD(@thang_bat_dau, INTERVAL 1 MONTH);
--- ma_nguoi cua benh nhan can xem. Mac dinh 2 (BN002: dot cu da khoi + dot tai phat dang mo).
--- Thu them: 1 (BN001, 3 luot roi khoi), 5 (BN005, 2 benh trong 1 luot).
+
 SET @ma_benh_nhan_can_xem = 2;
 
--- Truy van 1: thong ke benh trong thang.
--- Xep theo so DOT mac co it nhat mot luot kham trong thang (tai phat la dot rieng);
--- so_benh_nhan (DISTINCT) chi de doi chieu.
 SELECT b.ma_benh, b.ten_benh,
        COUNT(DISTINCT d.ma_dot) AS so_dot_mac,
        COUNT(DISTINCT d.ma_benh_nhan) AS so_benh_nhan
@@ -428,11 +375,6 @@ WHERE lk.thoi_diem_vao >= @thang_bat_dau
 GROUP BY b.ma_benh, b.ten_benh
 ORDER BY so_dot_mac DESC, so_benh_nhan DESC, b.ten_benh;
 
--- Truy van 2: luong thang.
--- BS: 7.000.000 + 1.000.000 x so dot KHOI co ngay_ket_thuc trong thang
---     (BS la nguoi o dong chan doan cua luot ket thuc dot).
--- Y ta: 5.000.000 + 200.000 x so su kien ma_ho_tro co thoi_diem trong thang.
--- Liet ke nhan vien DANG_LAM, va ca nhan vien da nghi neu co thuong trong thang.
 WITH bs_thuong AS (
   SELECT cd.ma_bac_si, COUNT(*) AS so_dot_khoi
   FROM DOT_DIEU_TRI d
@@ -468,8 +410,6 @@ LEFT JOIN yt_thuong t ON t.ma_y_ta=yt.ma_nguoi
 WHERE nv.trang_thai='DANG_LAM' OR COALESCE(t.so_su_kien,0)>0
 ORDER BY loai, ma_nhan_vien;
 
--- Truy van 3: ho so benh nhan, tach 5 tap ket qua de khong nhan dong.
--- 3A: thong tin ca nhan.
 SELECT bn.ma_benh_nhan, n.cmt, n.ho_ten, n.ngay_sinh, n.gioi_tinh,
        n.dia_chi, n.so_dien_thoai, nv.ma_nhan_vien AS ma_nhan_vien_neu_co
 FROM BENH_NHAN bn
@@ -477,7 +417,6 @@ JOIN NGUOI n ON n.ma_nguoi = bn.ma_nguoi
 LEFT JOIN NHAN_VIEN nv ON nv.ma_nguoi = bn.ma_nguoi
 WHERE bn.ma_nguoi = @ma_benh_nhan_can_xem;
 
--- 3B: lich su kham: luot, benh, dot, bac si, phi; so thu tu luot trong dot.
 SELECT bn.ma_benh_nhan, n.ho_ten, lk.ma_lan_kham, lk.thoi_diem_vao, lk.thoi_diem_ra,
        b.ten_benh, d.ma_dot, d.trang_thai AS tinh_trang_dot,
        d.ngay_bat_dau, d.ngay_ket_thuc,
@@ -494,7 +433,6 @@ JOIN NGUOI bs_n ON bs_n.ma_nguoi=bs.ma_nguoi
 WHERE bn.ma_nguoi=@ma_benh_nhan_can_xem
 ORDER BY lk.thoi_diem_vao, b.ten_benh;
 
--- 3C: hien trang = cac dot DANG_DIEU_TRI va so lan kham den nay.
 SELECT bn.ma_benh_nhan, n.ho_ten, b.ten_benh, d.ma_dot, d.ngay_bat_dau,
        COUNT(cd.ma_lan_kham) AS so_lan_kham,
        MAX(lk.thoi_diem_vao) AS lan_kham_gan_nhat
@@ -507,7 +445,6 @@ WHERE bn.ma_nguoi=@ma_benh_nhan_can_xem AND d.trang_thai='DANG_DIEU_TRI'
 GROUP BY bn.ma_benh_nhan, n.ho_ten, b.ten_benh, d.ma_dot, d.ngay_bat_dau
 ORDER BY b.ten_benh;
 
--- 3D: cac su kien ho tro cua y ta trong cac luot kham cua benh nhan.
 SELECT lk.ma_lan_kham, lk.thoi_diem_vao, yt.ma_nguoi AS ma_y_ta,
        n.ho_ten AS ten_y_ta, h.ma_ho_tro, h.vai_tro, h.thoi_diem, h.ghi_chu
 FROM LAN_KHAM lk JOIN Y_TA_HO_TRO h ON h.ma_lan_kham=lk.ma_lan_kham
@@ -515,7 +452,6 @@ JOIN Y_TA yt ON yt.ma_nguoi=h.ma_y_ta JOIN NGUOI n ON n.ma_nguoi=yt.ma_nguoi
 WHERE lk.ma_benh_nhan=@ma_benh_nhan_can_xem
 ORDER BY lk.thoi_diem_vao, h.thoi_diem;
 
--- 3E: thuoc da ke; hien trang thai don va co tinh tien hay khong (chi DA_CAP).
 SELECT lk.ma_lan_kham, lk.thoi_diem_vao, d.ma_don, d.ngay_ke,
        d.trang_thai AS trang_thai_don, d.thoi_diem_cap,
        t.ten_thuoc, ct.so_luong, ct.don_gia_tai_thoi_diem,
@@ -527,8 +463,6 @@ JOIN CT_DON_THUOC ct ON ct.ma_don=d.ma_don JOIN THUOC t ON t.ma_thuoc=ct.ma_thuo
 WHERE lk.ma_benh_nhan=@ma_benh_nhan_can_xem
 ORDER BY lk.thoi_diem_vao, d.ma_don, t.ten_thuoc;
 
--- Truy van 4: doanh thu phat sinh trong thang.
--- Hai phan duoc SUM rieng (khong JOIN chi tiet thuoc voi phi kham) roi moi cong.
 SELECT kham.doanh_thu_kham_chua, thuoc.doanh_thu_thuoc,
        kham.doanh_thu_kham_chua + thuoc.doanh_thu_thuoc AS tong_doanh_thu
 FROM (
@@ -543,9 +477,6 @@ CROSS JOIN (
     AND d.thoi_diem_cap >= @thang_bat_dau AND d.thoi_diem_cap < @thang_sau
 ) thuoc;
 
--- ---------------------------------------------------------------------
--- 7. Doi soat so dong mau voi bao cao (cot ket_qua phai la 'OK' o moi dong)
--- ---------------------------------------------------------------------
 SELECT ten_bang, so_ban_ghi, so_dong_bao_cao,
        CASE WHEN so_ban_ghi = so_dong_bao_cao THEN 'OK' ELSE 'LECH' END AS ket_qua
 FROM (
@@ -566,19 +497,3 @@ FROM (
   UNION ALL SELECT 'CT_DON_THUOC', COUNT(*), 13 FROM CT_DON_THUOC
   UNION ALL SELECT 'TAI_KHOAN', COUNT(*), 3 FROM TAI_KHOAN
 ) x;
-
--- ---------------------------------------------------------------------
--- 8. Kiem thu rang buoc (bo comment tung lenh de thu; moi lenh phai bi tu choi)
--- ---------------------------------------------------------------------
--- R3: hai dot dang mo cung benh nhan - cung benh
---   INSERT INTO DOT_DIEU_TRI (ma_benh_nhan,ma_benh,ngay_bat_dau) VALUES (2,1,'2026-10-20');
--- R6: them chan doan vao dot da dong
---   INSERT INTO CHI_TIET_CHAN_DOAN VALUES (1005,5001,'BS010',100000,'x');
--- R6: mo lai dot da khoi
---   UPDATE DOT_DIEU_TRI SET trang_thai='DANG_DIEU_TRI',ngay_ket_thuc=NULL,ma_lan_kham_ket_thuc=NULL WHERE ma_dot=5001;
--- R5: luot kham cua BN001 gan vao dot cua BN002
---   INSERT INTO CHI_TIET_CHAN_DOAN VALUES (1001,5002,'BS010',100000,'x');
--- R8: don DA_CAP thieu thoi_diem_cap
---   INSERT INTO DON_THUOC (ma_lan_kham,ngay_ke,trang_thai) VALUES (1001,'2026-10-02 08:00:00','DA_CAP');
--- R9: bac si dong thoi la y ta
---   INSERT INTO Y_TA (ma_nguoi,trinh_do,tham_nien) VALUES (10,'Dai hoc',1);

@@ -265,7 +265,15 @@ def api_reports_payroll_evidence(emp_id):
 
 @reports_bp.route("/api/reports/revenue", methods=["GET"])
 def api_reports_revenue():
-    """Doanh thu theo tháng (Truy vấn lõi 4)."""
+    """Doanh thu theo tháng (Truy vấn lõi 4). Chặn 403 nếu không phải ADMIN."""
+    user_role = (request.headers.get("X-User-Role") or request.args.get("role") or "").strip().upper()
+    if user_role in ("BAC_SI", "Y_TA"):
+        return jsonify({
+            "success": False,
+            "message": "Truy cập bị từ chối (403 Forbidden)! Chỉ Quản trị viên (ADMIN) mới có quyền truy cập báo cáo doanh thu tài chính.",
+            "error": "403 Forbidden",
+        }), 403
+
     month = request.args.get("month", "2026-10")
     _, _, dt_start, dt_end = get_month_bounds(month)
     with engine.connect() as conn:

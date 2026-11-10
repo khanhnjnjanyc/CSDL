@@ -1,8 +1,10 @@
+
 CREATE DATABASE IF NOT EXISTS phong_kham
   CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
 USE phong_kham;
 SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
+
 DROP TABLE IF EXISTS TAI_KHOAN;
 DROP TABLE IF EXISTS CT_DON_THUOC;
 DROP TABLE IF EXISTS DON_THUOC;
@@ -27,7 +29,7 @@ CREATE TABLE NGUOI (
   ngay_sinh DATE NOT NULL,
   gioi_tinh VARCHAR(10) NOT NULL,
   dia_chi VARCHAR(255),
-  so_dien_thoai VARCHAR(15),
+  so_dien_thoai VARCHAR(15) NULL,
   trang_thai_khoa TINYINT(1) NOT NULL DEFAULT 0,
   CONSTRAINT ck_nguoi_gioi_tinh CHECK (gioi_tinh IN ('Nam','Nu','Khac'))
 ) ENGINE=InnoDB;
@@ -61,11 +63,10 @@ CREATE TABLE Y_TA (
 
 CREATE TABLE BENH_NHAN (
   ma_nguoi INT PRIMARY KEY,
-  ma_benh_nhan VARCHAR(20) NOT NULL UNIQUE,   -- ma nghiep vu, vi du 'BN001'
+  ma_benh_nhan VARCHAR(20) NOT NULL UNIQUE, 
   CONSTRAINT fk_bn_nguoi FOREIGN KEY (ma_nguoi) REFERENCES NGUOI(ma_nguoi)
 ) ENGINE=InnoDB;
 
--- R9: BAC_SI va Y_TA khong giao nhau (disjoint). Kiem tra khi them dong.
 DELIMITER $$
 CREATE TRIGGER trg_bs_disjoint BEFORE INSERT ON BAC_SI
 FOR EACH ROW
@@ -90,7 +91,7 @@ CREATE TABLE CHUYEN_MON (
 ) ENGINE=InnoDB;
 
 CREATE TABLE BAC_SI_CHUYEN_MON (
-  ma_bac_si VARCHAR(20) NOT NULL,            -- ma nghiep vu BAC_SI.ma_bac_si
+  ma_bac_si VARCHAR(20) NOT NULL,           
   ma_chuyen_mon INT NOT NULL,
   PRIMARY KEY (ma_bac_si, ma_chuyen_mon),
   CONSTRAINT fk_bscm_bs FOREIGN KEY (ma_bac_si) REFERENCES BAC_SI(ma_bac_si),
@@ -208,9 +209,9 @@ BEGIN
 END$$
 DELIMITER ;
 
-
+-- Dong bo kieu du lieu ma_ho_tro INT theo Trang 9 (Muc 2.4) cua Bao cao Yeu cau 1 moi
 CREATE TABLE Y_TA_HO_TRO (
-  ma_ho_tro BIGINT AUTO_INCREMENT PRIMARY KEY,
+  ma_ho_tro INT AUTO_INCREMENT PRIMARY KEY,
   ma_lan_kham INT NOT NULL,
   ma_y_ta INT NOT NULL,                      -- = Y_TA.ma_nguoi
   vai_tro VARCHAR(50) NOT NULL,
@@ -250,11 +251,13 @@ CREATE TABLE CT_DON_THUOC (
   CONSTRAINT fk_ctdt_thuoc FOREIGN KEY (ma_thuoc) REFERENCES THUOC(ma_thuoc)
 ) ENGINE=InnoDB;
 
+-- Dong bo kieu du lieu role VARCHAR(20) + CHECK theo Trang 10 (Muc 2.5) cua Bao cao Yeu cau 1 moi
 CREATE TABLE TAI_KHOAN (
   cmt VARCHAR(12) PRIMARY KEY,
-  role ENUM('ADMIN','BAC_SI','Y_TA') NOT NULL,
+  role VARCHAR(20) NOT NULL,
   password_hash VARCHAR(255) NOT NULL,
   active TINYINT(1) NOT NULL DEFAULT 1,
+  CONSTRAINT ck_tk_role CHECK (role IN ('ADMIN','BAC_SI','Y_TA')),
   CONSTRAINT fk_tk_nguoi FOREIGN KEY (cmt) REFERENCES NGUOI(cmt)
 ) ENGINE=InnoDB;
 
@@ -358,14 +361,14 @@ INSERT INTO TAI_KHOAN (cmt,role,password_hash,active) VALUES
 ('001000000011','BAC_SI','demo_hash_bs011',1),
 ('001000000020','Y_TA','demo_hash_yt020',1);
 
+
 SET @thang_bat_dau = '2026-10-01';
 SET @thang_sau = DATE_ADD(@thang_bat_dau, INTERVAL 1 MONTH);
-
 SET @ma_benh_nhan_can_xem = 2;
 
 SELECT b.ma_benh, b.ten_benh,
-       COUNT(DISTINCT d.ma_dot) AS so_dot_mac,
-       COUNT(DISTINCT d.ma_benh_nhan) AS so_benh_nhan
+       COUNT(DISTINCT d.ma_benh_nhan) AS so_benh_nhan,
+       COUNT(DISTINCT d.ma_dot) AS so_dot_mac
 FROM LAN_KHAM lk
 JOIN CHI_TIET_CHAN_DOAN cd ON cd.ma_lan_kham = lk.ma_lan_kham
 JOIN DOT_DIEU_TRI d ON d.ma_dot = cd.ma_dot
@@ -373,7 +376,7 @@ JOIN BENH b ON b.ma_benh = d.ma_benh
 WHERE lk.thoi_diem_vao >= @thang_bat_dau
   AND lk.thoi_diem_vao < @thang_sau
 GROUP BY b.ma_benh, b.ten_benh
-ORDER BY so_dot_mac DESC, so_benh_nhan DESC, b.ten_benh;
+ORDER BY so_benh_nhan DESC, so_dot_mac DESC, b.ten_benh;
 
 WITH bs_thuong AS (
   SELECT cd.ma_bac_si, COUNT(*) AS so_dot_khoi

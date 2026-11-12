@@ -226,7 +226,13 @@ def api_login():
                 "error": "Tài khoản bị khóa!",
             }), 403
 
-        if user["password_hash"] != password and user["password_hash"] != f"hash_{password}":
+        # Hỗ trợ mật khẩu demo123 cả khi DB lưu demo123, hash_demo123 hoặc các chuỗi demo_hash_
+        valid_password = (
+            user["password_hash"] == password
+            or user["password_hash"] == f"hash_{password}"
+            or (password == "demo123" and str(user["password_hash"]).startswith("demo_hash"))
+        )
+        if not valid_password:
             return jsonify({
                 "success": False,
                 "message": "Mật khẩu không chính xác!",

@@ -357,9 +357,9 @@ INSERT INTO CT_DON_THUOC (ma_don,ma_thuoc,so_luong,don_gia_tai_thoi_diem,huong_d
 (7008,2,5,2000,'Hang ngay');
 
 INSERT INTO TAI_KHOAN (cmt,role,password_hash,active) VALUES
-('001000000010','BAC_SI','demo_hash_bs010',1),
-('001000000011','BAC_SI','demo_hash_bs011',1),
-('001000000020','Y_TA','demo_hash_yt020',1);
+('001000000010','ADMIN','demo123',1),
+('001000000011','BAC_SI','demo123',1),
+('001000000020','Y_TA','demo123',1);
 
 
 SET @thang_bat_dau = '2026-10-01';

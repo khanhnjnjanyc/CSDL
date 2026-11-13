@@ -25,7 +25,7 @@ def _query_diseases_report(conn, dt_start, dt_end):
         JOIN BENH b ON b.ma_benh = d.ma_benh
         WHERE lk.thoi_diem_vao >= :dt1 AND lk.thoi_diem_vao < :dt2
         GROUP BY b.ma_benh, b.ten_benh
-        ORDER BY so_dot_mac DESC, so_benh_nhan_duy_nhat DESC, b.ten_benh ASC
+        ORDER BY so_benh_nhan DESC, so_dot_mac DESC, b.ten_benh ASC
     """
     return rows_to_dicts(conn.execute(text(sql), {"dt1": dt_start, "dt2": dt_end}))
 

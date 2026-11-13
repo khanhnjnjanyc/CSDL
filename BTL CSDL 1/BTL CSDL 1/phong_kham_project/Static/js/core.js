@@ -182,6 +182,7 @@ function switchScreen(screenId, navEl) {
   if (screenId === "screen-6") loadStaff();
   if (screenId === "screen-7") loadReports();
   if (screenId === "screen-8") loadCatalog();
+  if (screenId === "screen-10") loadDiseaseStats();
 }
 
 function switchScreenById(screenId) {

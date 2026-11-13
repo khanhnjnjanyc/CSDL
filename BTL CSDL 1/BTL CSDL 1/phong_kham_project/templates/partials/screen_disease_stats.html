@@ -1,0 +1,82 @@
+<!-- =========================================================
+     MÀN HÌNH 10: THỐNG KÊ BỆNH THEO THÁNG (TRUY VẤN 1 CỦA ĐỀ)
+     Liệt kê các loại bệnh bệnh nhân mắc phải trong một tháng cho trước,
+     sắp xếp theo số bệnh nhân giảm dần.
+     ========================================================= -->
+<div id="screen-10" class="screen-section">
+  <div class="d-flex flex-wrap justify-content-between align-items-start mb-3 gap-2">
+    <div>
+      <h4 class="fw-bold mb-0">Thống kê bệnh theo tháng</h4>
+      <small class="text-muted">
+        Các loại bệnh bệnh nhân mắc phải trong tháng, xếp theo số bệnh nhân giảm dần.
+        Khám liên tiếp trong cùng một đợt chỉ tính 1 lần; mắc lại sau khi đã khỏi tính là đợt mới.
+      </small>
+    </div>
+    <a id="btnDsExport" href="#" class="btn btn-sm btn-outline-teal">
+      <i class="bi bi-download me-1"></i>Xuất CSV
+    </a>
+  </div>
+
+  <div class="mc-card p-3 mb-3">
+    <div class="row g-2 align-items-end">
+      <div class="col-auto">
+        <label class="form-label small fw-semibold mb-1" for="dsMonth">Chọn tháng/năm</label>
+        <input type="month" id="dsMonth" class="form-control form-control-sm" value="2026-10" />
+      </div>
+      <div class="col-auto">
+        <button type="button" id="dsBtnFilter" class="btn btn-sm btn-teal" onclick="loadDiseaseStats()">
+          <i class="bi bi-funnel me-1"></i>Lọc
+        </button>
+      </div>
+      <div class="col-12 col-md-4 ms-md-auto">
+        <label class="form-label small fw-semibold mb-1" for="dsSearch">Tìm theo tên bệnh</label>
+        <input type="text" id="dsSearch" class="form-control form-control-sm" placeholder="VD: viêm họng" oninput="renderDiseaseStats()" />
+      </div>
+    </div>
+  </div>
+
+  <div class="mc-card p-3">
+    <div id="dsSummary" class="small text-muted mb-2"></div>
+    <table class="table table-sm table-bordered align-middle small mb-0">
+      <thead>
+        <tr>
+          <th>Hạng</th>
+          <th>Mã bệnh</th>
+          <th>Tên bệnh</th>
+          <th>Số bệnh nhân</th>
+          <th>Số đợt mắc</th>
+          <th>Danh sách bệnh nhân</th>
+        </tr>
+      </thead>
+      <tbody id="dsBody"></tbody>
+    </table>
+  </div>
+
+  <!-- Hộp thoại danh sách bệnh nhân của một bệnh -->
+  <div class="modal fade" id="dsEvidenceModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h6 class="modal-title fw-bold text-teal" id="dsModalTitle">Danh sách bệnh nhân</h6>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body small">
+          <table class="table table-sm table-bordered align-middle mb-0">
+            <thead>
+              <tr>
+                <th>Mã BN</th>
+                <th>Họ tên bệnh nhân</th>
+                <th>Đợt điều trị</th>
+                <th>Ngày bắt đầu đợt</th>
+                <th>Số lượt khám trong tháng</th>
+                <th>Trạng thái đợt</th>
+                <th>Hồ sơ</th>
+              </tr>
+            </thead>
+            <tbody id="dsModalBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
